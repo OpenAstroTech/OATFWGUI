@@ -4,18 +4,21 @@ import random
 import sys
 import zipfile
 import re
+import logging
+import enum
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Slot, Signal, QObject
 from PySide6.QtWidgets import *
 
-import requests
 from platformio.run.cli import cli as pio_run
+
+import requests
 
 
 class MainWidget(QWidget):
-    def __init__(self):
+    def __init__(self, log_object: QObject):
         QWidget.__init__(self)
 
         self.hello = [
@@ -38,12 +41,15 @@ class MainWidget(QWidget):
 
         # signals
         self.button.clicked.connect(self.magic)
+        log_object.log_signal.connect(self.logText.appendHtml)
 
     @Slot()
     def magic(self):
         self.message.setText(random.choice(self.hello))
-        self.logText.appendHtml('aaaaaaa' * 50)
-        self.logText.appendHtml('<b>bbbb</b>' * 50)
+        log.debug('Debug')
+        log.info('Info')
+        log.warning('Warning')
+        log.critical('Critical')
 
 
 def get_fw_versions() -> Dict[str, str]:
@@ -83,9 +89,10 @@ def extract_fw(zipfile_name: str) -> str:
 
 
 def get_pio_environments(fw_dir: str) -> List[str]:
-    with open(Path(fw_dir, 'platformio.ini').resolve(), 'r') as fp:
+    ini_path = Path(fw_dir, 'platformio.ini')
+    with open(ini_path.resolve(), 'r') as fp:
         ini_lines = fp.readlines()
-    environment_lines = [l for l in ini_lines if l.startswith('[env:')]
+    environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
     pio_environments = []
     for environment_line in environment_lines:
         match = re.search(r'\[env:(.+)\]', environment_line)
@@ -100,25 +107,106 @@ def build_fw(pio_environment: str, fw_dir: str):
     pio_run(['--environment', pio_environment, '--project-dir', fw_dir])
 
 
+class LogObject(QObject):
+    log_signal = Signal(str)
+
+    def __init__(self):
+        super().__init__()
+
+    def write(self, s):
+        # TODO: Could buffer if QMetaMethod.fromSignal worked?
+        self.log_signal.emit(s)
+
+
+class LogColourTypes(enum.Enum):
+    no_colour = enum.auto()
+    html = enum.auto()
+    terminal = enum.auto()
+
+
+class CustomFormatter(logging.Formatter):
+    def __init__(self, colour_type:LogColourTypes=LogColourTypes.no_colour):
+        super().__init__(fmt='%(asctime)s:%(levelname)s:%(message)s')
+        self.colour_type = colour_type
+
+    def _colour_terminal(self, levelno: int) -> Tuple[str, str]:
+        grey = "\x1b[38;20m"
+        yellow = "\x1b[33;20m"
+        red = "\x1b[31;20m"
+        bold_red = "\x1b[31;1m"
+        reset = "\x1b[0m"
+
+        pre, post = {
+            logging.DEBUG: (grey, reset),
+            logging.INFO: (grey, reset),
+            logging.WARNING: (yellow, reset),
+            logging.ERROR: (red, reset),
+            logging.CRITICAL: (bold_red, reset),
+        }.get(levelno, ('', ''))
+        return pre, post
+
+    def _colour_html(self, levelno: int) -> Tuple[str, str]:
+        pre, post = {
+            logging.DEBUG: ('<p style="color:grey">', '</p>'),
+            logging.INFO: ('<p style="color:grey">', '</p>'),
+            logging.WARNING: ('<p style="color:yellow">', '</p>'),
+            logging.ERROR: ('<p style="color:red">', '</p>'),
+            logging.CRITICAL: ('<p style="color:red">', '</p>'),
+        }.get(levelno, ('', ''))
+        return pre, post
+
+    def format(self, record):
+        if self.colour_type == LogColourTypes.terminal:
+            pre, post = self._colour_terminal(record.levelno)
+        elif self.colour_type == LogColourTypes.html:
+            pre, post = self._colour_html(record.levelno)
+        else:
+            pre, post = '', ''
+        return pre + super().format(record) + post
+
+
 def main():
     if sys.base_prefix == sys.prefix:
-        print('I should be running in a virtual environment! Something is wrong...')
+        log.fatal('I should be running in a virtual environment! Something is wrong...')
         exit(1)
 
-    releases_dict = get_fw_versions()
-    zipfile_name = download_fw(releases_dict['Arduino V1.11.5'])
-    fw_dir = extract_fw(zipfile_name)
-    pio_environments = get_pio_environments(fw_dir)
-    build_fw(pio_environments[0], fw_dir)
-    exit(0)
+    # releases_dict = get_fw_versions()
+    # zipfile_name = download_fw(releases_dict['Arduino V1.11.5'])
+    # fw_dir = extract_fw(zipfile_name)
+    # pio_environments = get_pio_environments(fw_dir)
+    # build_fw(pio_environments[0], fw_dir)
+    # exit(0)
 
     app = QApplication(sys.argv)
 
-    widget = MainWidget()
+    widget = MainWidget(l_o)
     widget.show()
 
-    sys.exit(app.exec())
+    exit(app.exec())
+
+
+def setup_logging(logger):
+    logger.setLevel(logging.DEBUG)
+    # file handler
+    fh = logging.FileHandler('spam.log')
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(CustomFormatter(colour_type=LogColourTypes.no_colour))
+    logger.addHandler(fh)
+    # console handler
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(CustomFormatter(colour_type=LogColourTypes.terminal))
+    logger.addHandler(ch)
+    # gui handler
+    gh = logging.StreamHandler(stream=l_o)
+    gh.setLevel(logging.DEBUG)
+    gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
+    logger.addHandler(gh)
 
 
 if __name__ == '__main__':
+    log = logging.getLogger('')
+    l_o = LogObject()
+    setup_logging(log)
+    log.debug('Logging initialized')
     main()
