@@ -298,7 +298,7 @@ class CustomFormatter(logging.Formatter):
             pre, post = self._colour_html(record.levelno)
             log_str = pre + html.escape(super().format(record)) + post
         else:
-            log_str = ''
+            log_str = super().format(record)
         return log_str
 
 
