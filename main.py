@@ -1,7 +1,6 @@
 #!/bin/env python3
 
 import sys
-import time
 import zipfile
 import re
 import logging
@@ -9,10 +8,10 @@ import enum
 import traceback
 import html
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import List, Tuple, Optional
 from collections import namedtuple
 
-from PySide6.QtCore import Qt, Slot, Signal, QObject, QRunnable, QThreadPool, SIGNAL
+from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QThreadPool
 from PySide6.QtWidgets import *
 
 from platformio.run.cli import cli as pio_run
@@ -57,58 +56,57 @@ StageAction = namedtuple('StageAction', ['fn_action', 'fn_result'])
 FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
 
 
+class LogicState:
+    release_list: Optional[List[FWVersion]] = None
+    release_idx: Optional[int] = None
+    pio_envs: Optional[List[str]] = None
+    pio_env: Optional[str] = None
+    config_file_path: Optional[str] = None
+
+    def __setattr__(self, key, val):
+        log.debug(f'LogicState updated: {key} {getattr(self, key)} -> {val}')
+        super().__setattr__(key, val)
+
+
 class BusinessLogic:
     def __init__(self, main_app: 'MainWidget'):
-        self.stage_idx = 0
-        self.stages = [
-            StageAction(fn_action=self.get_fw_versions, fn_result=self.get_fw_versions_result),
-            StageAction(fn_action=self.download_fw, fn_result=None),
-            StageAction(fn_action=self.extract_fw, fn_result=None),
-            StageAction(fn_action=self.get_pio_environments, fn_result=self.get_pio_environments_result),
-        ]
-        self.last_stage_result: Optional[Any] = None
+        self.logic_state = LogicState()
 
         self.main_app = main_app
         main_app.wBtn_download_fw.setDisabled(False)
-        main_app.wBtn_download_fw.clicked.connect(self.trigger_next_stage)
+        main_app.wBtn_download_fw.clicked.connect(self.spawn_worker_thread(self.download_and_extract_fw))
 
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)  # Only one worker
 
-    @Slot()
-    def trigger_next_stage(self, worker_result=None):
-        if self.stage_idx + 1 > len(self.stages):
-            log.error(f'Tried to trigger stage {self.stage_idx + 1}, only have {len(self.stages)} stages')
-            return
+        # Manually spawn a worker to grab tags from GitHub
+        self.spawn_worker_thread(self.get_fw_versions)()
 
-        all_threads_removed = self.threadpool.waitForDone(msecs=5000)
-        if not all_threads_removed:
-            log.fatal(f'Waited too long for threads to exit! {self.threadpool.activeThreadCount()}')
-            exit(1)
+    def spawn_worker_thread(self, fn):
+        @Slot()
+        def worker_thread_slot():
+            all_threads_removed = self.threadpool.waitForDone(msecs=5000)
+            if not all_threads_removed:
+                log.fatal(f'Waited too long for threads to exit! {self.threadpool.activeThreadCount()}')
+                exit(1)
 
-        fn_action = self.stages[self.stage_idx].fn_action
-        fn_result = self.stages[self.stage_idx].fn_result
-
-        log.debug(f'Creating worker {str(fn_action)}({self.last_stage_result}:{type(self.last_stage_result)})')
-        worker = Worker(fn_action, self.last_stage_result)
-        worker.signals.result.connect(self.store_worker_result)
-        log.debug(f'Result function slot: {fn_result}')
-        if fn_result is not None:
-            worker.signals.result.connect(fn_result)
-        else:
-            # No processing needed, automatically trigger next stage
-            worker.signals.result.connect(self.trigger_next_stage)
-        # this fixes a bug with thread signal allocation/deallocation
-        worker.setAutoDelete(False)
-        self.threadpool.start(worker)
-        self.stage_idx += 1
+            log.debug(f'Creating worker {str(fn)}')
+            worker = Worker(fn)
+            worker.signals.result.connect(self.worker_finished)
+            # this fixes a bug with thread signal allocation/deallocation
+            worker.setAutoDelete(False)
+            self.threadpool.start(worker)
+        return worker_thread_slot
 
     @Slot()
-    def store_worker_result(self, worker_result=None):
-        self.last_stage_result = worker_result
+    def worker_finished(self, worker_name: Optional[str] = None):
+        # Update all of the gui logic
+        if worker_name == self.get_fw_versions.__name__ and self.logic_state.release_list is not None:
+            self.get_fw_versions_result(self.main_app, self.logic_state.release_list)
+        elif worker_name == self.download_and_extract_fw.__name__ and self.logic_state.pio_envs is not None:
+            self.download_and_extract_fw_result(self.main_app, self.logic_state.pio_envs)
 
-    @staticmethod
-    def get_fw_versions(last_stage_result: None) -> List[FWVersion]:
+    def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
         print(f'Grabbing available FW versions from {fw_api_url}')
         response = requests.get(fw_api_url)
@@ -118,19 +116,39 @@ class BusinessLogic:
         ]
         for release_json in response.json():
             releases_list.append(FWVersion(release_json['name'], release_json['zipball_url']))
-        return releases_list
 
-    def get_fw_versions_result(self, fw_versions_list: List[FWVersion]):
+        self.logic_state.release_list = releases_list
+        return self.get_fw_versions.__name__
+
+    @staticmethod
+    def get_fw_versions_result(main_app: 'MainWidget', fw_versions_list: List[FWVersion]):
         # Add all the FW versions to the combo box
-        self.main_app.wCombo_fw_version.clear()
+        main_app.wCombo_fw_version.clear()
         for fw_version in fw_versions_list:
-            self.main_app.wCombo_fw_version.addItem(fw_version.nice_name)
-        self.main_app.wCombo_fw_version.setCurrentIndex(0)
-        self.main_app.wBtn_download_fw.setDisabled(False)
+            main_app.wCombo_fw_version.addItem(fw_version.nice_name)
+        main_app.wCombo_fw_version.setCurrentIndex(0)
+        main_app.wBtn_download_fw.setDisabled(False)
 
-    def download_fw(self, last_stage_result: List[FWVersion]) -> str:
+    def download_and_extract_fw(self) -> str:
         fw_idx = self.main_app.wCombo_fw_version.currentIndex()
-        zip_url = last_stage_result[fw_idx].url
+        zip_url = self.logic_state.release_list[fw_idx].url
+        zipfile_name = self.download_fw(zip_url)
+        fw_dir = self.extract_fw(zipfile_name)
+
+        self.logic_state.pio_envs = self.get_pio_environments(fw_dir)
+        return self.download_and_extract_fw.__name__
+
+    @staticmethod
+    def download_and_extract_fw_result(main_app: 'MainWidget', pio_environments: List[str]):
+        # Add all the platformio environments to the combo box
+        main_app.wCombo_pio_env.clear()
+        for pio_env_name in pio_environments:
+            main_app.wCombo_pio_env.addItem(pio_env_name)
+        main_app.wCombo_pio_env.setCurrentIndex(0)
+        main_app.wBtn_build_fw.setDisabled(False)
+
+    @staticmethod
+    def download_fw(zip_url: str) -> str:
         log.info(f'Downloading OAT FW from: {zip_url}')
         resp = requests.get(zip_url)
         zipfile_name = 'OATFW.zip'
@@ -140,8 +158,7 @@ class BusinessLogic:
         return zipfile_name
 
     @staticmethod
-    def extract_fw(last_stage_result: str) -> str:
-        zipfile_name = last_stage_result
+    def extract_fw(zipfile_name: str) -> str:
         log.info(f'Extracting FW from {zipfile_name}')
         with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
             zip_infolist = zip_ref.infolist()
@@ -155,8 +172,7 @@ class BusinessLogic:
         return fw_dir
 
     @staticmethod
-    def get_pio_environments(last_stage_result: str) -> List[str]:
-        fw_dir = last_stage_result
+    def get_pio_environments(fw_dir: str) -> List[str]:
         ini_path = Path(fw_dir, 'platformio.ini')
         with open(ini_path.resolve(), 'r') as fp:
             ini_lines = fp.readlines()
@@ -168,14 +184,6 @@ class BusinessLogic:
                 pio_environments.append(match.group(1))
         log.info(f'Found pio environments: {pio_environments}')
         return pio_environments
-
-    def get_pio_environments_result(self, pio_environments: List[str]):
-        # Add all the platformio environments to the combo box
-        self.main_app.wCombo_pio_env.clear()
-        for pio_env_name in pio_environments:
-            self.main_app.wCombo_pio_env.addItem(pio_env_name)
-        self.main_app.wCombo_pio_env.setCurrentIndex(0)
-        self.main_app.wBtn_build_fw.setDisabled(False)
 
     @staticmethod
     def build_fw(pio_environment: str, fw_dir: str):
@@ -227,8 +235,6 @@ class MainWidget(QWidget):
 
         # business logic will connect signals as well
         self.logic = BusinessLogic(self)
-        # trigger the first stage
-        self.logic.trigger_next_stage()
 
     @Slot()
     def open_local_config_file(self):
@@ -300,13 +306,6 @@ def main():
     if sys.base_prefix == sys.prefix:
         log.fatal('I should be running in a virtual environment! Something is wrong...')
         exit(1)
-
-    # releases_dict = get_fw_versions()
-    # zipfile_name = download_fw(releases_dict['Arduino V1.11.5'])
-    # fw_dir = extract_fw(zipfile_name)
-    # pio_environments = get_pio_environments(fw_dir)
-    # build_fw(pio_environments[0], fw_dir)
-    # exit(0)
 
     app = QApplication(sys.argv)
 
