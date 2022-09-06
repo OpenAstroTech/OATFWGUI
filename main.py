@@ -54,12 +54,14 @@ class Worker(QRunnable):
 
 StageAction = namedtuple('StageAction', ['fn_action', 'fn_result'])
 FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
+PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
 
 
 class LogicState:
     release_list: Optional[List[FWVersion]] = None
     release_idx: Optional[int] = None
-    pio_envs: Optional[List[str]] = None
+    fw_dir: Optional[str] = None
+    pio_envs: Optional[List[PioEnv]] = None
     pio_env: Optional[str] = None
     config_file_path: Optional[str] = None
 
@@ -75,6 +77,9 @@ class BusinessLogic:
         self.main_app = main_app
         main_app.wBtn_download_fw.setDisabled(False)
         main_app.wBtn_download_fw.clicked.connect(self.spawn_worker_thread(self.download_and_extract_fw))
+        main_app.wBtn_select_local_config.clicked.connect(self.open_local_config_file)
+        main_app.wCombo_pio_env.currentIndexChanged.connect(self.pio_combo_box_changed)
+        main_app.wBtn_build_fw.clicked.connect(self.spawn_worker_thread(self.build_fw))
 
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)  # Only one worker
@@ -96,19 +101,32 @@ class BusinessLogic:
             # this fixes a bug with thread signal allocation/deallocation
             worker.setAutoDelete(False)
             self.threadpool.start(worker)
+
         return worker_thread_slot
 
     @Slot()
     def worker_finished(self, worker_name: Optional[str] = None):
         # Update all of the gui logic
+
         if worker_name == self.get_fw_versions.__name__ and self.logic_state.release_list is not None:
             self.get_fw_versions_result(self.main_app, self.logic_state.release_list)
         elif worker_name == self.download_and_extract_fw.__name__ and self.logic_state.pio_envs is not None:
             self.download_and_extract_fw_result(self.main_app, self.logic_state.pio_envs)
 
+        if self.logic_state.config_file_path is not None:
+            self.main_app.wMsg_config_path.setText(f'Local configuration file: {self.logic_state.config_file_path}')
+
+        # check requirements to unlock the build button
+        build_reqs = [
+            self.logic_state.config_file_path,
+            self.logic_state.pio_env,
+        ]
+        if all(r is not None for r in build_reqs):
+            self.main_app.wBtn_build_fw.setDisabled(False)
+
     def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
-        print(f'Grabbing available FW versions from {fw_api_url}')
+        log.info(f'Grabbing available FW versions from {fw_api_url}')
         response = requests.get(fw_api_url)
         releases_list = [
             FWVersion('develop',
@@ -133,19 +151,18 @@ class BusinessLogic:
         fw_idx = self.main_app.wCombo_fw_version.currentIndex()
         zip_url = self.logic_state.release_list[fw_idx].url
         zipfile_name = self.download_fw(zip_url)
-        fw_dir = self.extract_fw(zipfile_name)
 
-        self.logic_state.pio_envs = self.get_pio_environments(fw_dir)
+        self.logic_state.fw_dir = self.extract_fw(zipfile_name)
+        self.logic_state.pio_envs = self.get_pio_environments(self.logic_state.fw_dir)
         return self.download_and_extract_fw.__name__
 
     @staticmethod
-    def download_and_extract_fw_result(main_app: 'MainWidget', pio_environments: List[str]):
+    def download_and_extract_fw_result(main_app: 'MainWidget', pio_environments: List[PioEnv]):
         # Add all the platformio environments to the combo box
         main_app.wCombo_pio_env.clear()
         for pio_env_name in pio_environments:
-            main_app.wCombo_pio_env.addItem(pio_env_name)
-        main_app.wCombo_pio_env.setCurrentIndex(0)
-        main_app.wBtn_build_fw.setDisabled(False)
+            main_app.wCombo_pio_env.addItem(pio_env_name.nice_name)
+        main_app.wCombo_pio_env.setPlaceholderText('Select Board')
 
     @staticmethod
     def download_fw(zip_url: str) -> str:
@@ -172,23 +189,56 @@ class BusinessLogic:
         return fw_dir
 
     @staticmethod
-    def get_pio_environments(fw_dir: str) -> List[str]:
+    def get_pio_environments(fw_dir: str) -> List[PioEnv]:
         ini_path = Path(fw_dir, 'platformio.ini')
         with open(ini_path.resolve(), 'r') as fp:
             ini_lines = fp.readlines()
         environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
-        pio_environments = []
+        raw_pio_envs = []
         for environment_line in environment_lines:
             match = re.search(r'\[env:(.+)\]', environment_line)
             if match:
-                pio_environments.append(match.group(1))
-        log.info(f'Found pio environments: {pio_environments}')
+                raw_pio_envs.append(match.group(1))
+        log.info(f'Found pio environments: {raw_pio_envs}')
+
+        # we don't want to build native
+        if 'native' in raw_pio_envs:
+            raw_pio_envs.remove('native')
+        nice_name_lookup = {
+            'ramps': 'RAMPS',
+            'esp32': 'ESP32',
+            'mksgenlv21': 'MKS Gen L v2.1',
+            'mksgenlv2': 'MKS Gen L v2',
+            'mksgenlv1': 'MKS Gen L v1',
+        }
+        pio_environments = []
+        for raw_env in raw_pio_envs:
+            if raw_env in nice_name_lookup:
+                pio_env = PioEnv(nice_name_lookup[raw_env], raw_env)
+            else:
+                pio_env = PioEnv(raw_env, raw_env)
+            pio_environments.append(pio_env)
         return pio_environments
 
-    @staticmethod
-    def build_fw(pio_environment: str, fw_dir: str):
-        print(f'Building FW environment={pio_environment} dir={fw_dir}')
-        pio_run(['--environment', pio_environment, '--project-dir', fw_dir])
+    @Slot()
+    def pio_combo_box_changed(self, idx: int):
+        if self.logic_state.pio_envs is not None:
+            self.logic_state.pio_env = self.logic_state.pio_envs[idx].raw_name
+            # manually update GUI
+            self.worker_finished()
+
+    @Slot()
+    def open_local_config_file(self):
+        file_path, file_filter = QFileDialog.getOpenFileName(self.main_app, 'Open Local Config', '.',
+                                                             'OAT Config (*.h, *.hpp)')
+        log.info(f'Selected local config {file_path}')
+        self.logic_state.config_file_path = file_path
+        # manually update GUI
+        self.worker_finished()
+
+    def build_fw(self):
+        log.info(f'Building FW environment={self.logic_state.pio_env} dir={self.logic_state.fw_dir}')
+        pio_run(['--environment', self.logic_state.pio_env, '--project-dir', self.logic_state.fw_dir])
 
 
 class MainWidget(QWidget):
@@ -197,7 +247,6 @@ class MainWidget(QWidget):
 
         # widgets
         self.wMsg_fw_version = QLabel('Select firmware version:')
-        # self.w_message.alignment = Qt.AlignCenter
         self.wCombo_fw_version = QComboBox()
         self.wCombo_fw_version.setPlaceholderText('Grabbing FW Versions...')
         self.wBtn_download_fw = QPushButton('Download')
@@ -209,6 +258,7 @@ class MainWidget(QWidget):
         self.wBtn_select_local_config = QPushButton('Select local config file')
         self.wBtn_build_fw = QPushButton('Build FW')
         self.wBtn_build_fw.setDisabled(True)
+        self.wMsg_config_path = QLabel('No config file selected')
 
         self.wBtn_upload_fw = QPushButton('Upload FW')
         self.wBtn_upload_fw.setDisabled(True)
@@ -222,6 +272,7 @@ class MainWidget(QWidget):
         layout_arr = [
             [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, None, self.logText],
             [self.wMsg_pio_env, self.wCombo_pio_env, self.wBtn_select_local_config, self.wBtn_build_fw],
+            [self.wMsg_config_path],
             [self.wBtn_upload_fw]
         ]
         for y, row_arr in enumerate(layout_arr):
@@ -231,15 +282,9 @@ class MainWidget(QWidget):
 
         # signals
         log_object.log_signal.connect(self.logText.appendHtml)
-        self.wBtn_select_local_config.clicked.connect(self.open_local_config_file)
 
         # business logic will connect signals as well
         self.logic = BusinessLogic(self)
-
-    @Slot()
-    def open_local_config_file(self):
-        file_name, file_filter = QFileDialog.getOpenFileName(self, 'Open Local Config', '.', 'OAT Config (*.h, *.hpp)')
-        log.info(f'Selected local config {file_name}')
 
 
 class LogObject(QObject):
