@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 from collections import namedtuple
 
-from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QThreadPool
+import click
+from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QThreadPool, QFile
 from PySide6.QtWidgets import *
 
 from platformio.run.cli import cli as pio_run
@@ -233,12 +234,48 @@ class BusinessLogic:
                                                              'OAT Config (*.h, *.hpp)')
         log.info(f'Selected local config {file_path}')
         self.logic_state.config_file_path = file_path
+
         # manually update GUI
         self.worker_finished()
 
     def build_fw(self):
+        config_dest_path = str(Path(self.logic_state.fw_dir, 'configuration_local.hpp').resolve())
+        log.info(f'Copying config file from {self.logic_state.config_file_path} -> {config_dest_path}')
+        copy_success = QFile.copy(self.logic_state.config_file_path, config_dest_path)
+        if not copy_success:
+            log.error(f'Could not copy config file to {config_dest_path}')
+            return
         log.info(f'Building FW environment={self.logic_state.pio_env} dir={self.logic_state.fw_dir}')
-        pio_run(['--environment', self.logic_state.pio_env, '--project-dir', self.logic_state.fw_dir])
+
+        with RedirClickOutput():
+            pio_run(['--environment', self.logic_state.pio_env, '--project-dir', self.logic_state.fw_dir])
+
+
+class RedirClickOutput:
+    def __init__(self):
+        self.orig_text_stdout = click.utils._default_text_stdout
+        self.orig_text_stderr = click.utils._default_text_stderr
+        self.log = logging.getLogger('')
+
+    def __enter__(self):
+        def redir_factory(log_fn):
+            class LogRedir:
+                @staticmethod
+                def write(s):
+                    log_fn(s)
+
+                @staticmethod
+                def flush():
+                    pass
+
+            return LogRedir
+
+        click.utils._default_text_stdout = redir_factory(self.log.info)
+        click.utils._default_text_stderr = redir_factory(self.log.error)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        click.utils._default_text_stdout = self.orig_text_stdout
+        click.utils._default_text_stderr = self.orig_text_stderr
 
 
 class MainWidget(QWidget):
