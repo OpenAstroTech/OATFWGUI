@@ -11,11 +11,8 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 from collections import namedtuple
 
-import click
-from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QThreadPool, QFile
+from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QThreadPool, QFile, QProcess, QStandardPaths
 from PySide6.QtWidgets import *
-
-from platformio.run.cli import cli as pio_run
 
 import requests
 
@@ -58,6 +55,54 @@ FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
 PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
 
 
+class ExternalProcess:
+    def __init__(self, proc_name, proc_args, finish_signal):
+        self.proc_name = proc_name
+        self.proc_args = proc_args
+
+        self.qproc = QProcess()
+        self.qproc.setProgram(self.proc_name)
+        self.qproc.setArguments(self.proc_args)
+
+        # signals
+        self.qproc.readyReadStandardOutput.connect(self.handle_stdout)
+        self.qproc.readyReadStandardError.connect(self.handle_stderr)
+        self.qproc.stateChanged.connect(self.handle_state)
+        self.qproc.finished.connect(finish_signal)
+
+    def start(self):
+        log.info(f'Starting {self.proc_name} with args: {self.proc_args}')
+        self.qproc.start()
+        # Not sure why, but the process doesn't start without these
+        proc_started = self.qproc.waitForStarted(5000)
+        if not proc_started:
+            log.warning(f'{self.proc_name}:did not start')
+        proc_finished = self.qproc.waitForFinished(60000)
+        if not proc_finished:
+            log.warning(f'{self.proc_name}:did not finish')
+
+    @Slot()
+    def handle_stderr(self):
+        data = self.qproc.readAllStandardError()
+        stderr = bytes(data).decode("utf8")
+        log.error(stderr)
+
+    @Slot()
+    def handle_stdout(self):
+        data = self.qproc.readAllStandardOutput()
+        stdout = bytes(data).decode("utf8")
+        log.info(stdout)
+
+    @Slot()
+    def handle_state(self, state):
+        state_name = {
+            QProcess.NotRunning: 'Not running',
+            QProcess.Starting: 'Starting',
+            QProcess.Running: 'Running',
+        }.get(state)
+        log.info(f'{self.proc_name}:State changed: {state_name}')
+
+
 class LogicState:
     release_list: Optional[List[FWVersion]] = None
     release_idx: Optional[int] = None
@@ -74,6 +119,7 @@ class LogicState:
 class BusinessLogic:
     def __init__(self, main_app: 'MainWidget'):
         self.logic_state = LogicState()
+        self.pio_process = None
 
         self.main_app = main_app
         main_app.wBtn_download_fw.setDisabled(False)
@@ -93,8 +139,8 @@ class BusinessLogic:
         def worker_thread_slot():
             all_threads_removed = self.threadpool.waitForDone(msecs=5000)
             if not all_threads_removed:
-                log.fatal(f'Waited too long for threads to exit! {self.threadpool.activeThreadCount()}')
-                exit(1)
+                log.fatal(f'Waited too long for threads to sys.exit! {self.threadpool.activeThreadCount()}')
+                sys.exit(1)
 
             log.debug(f'Creating worker {str(fn)}')
             worker = Worker(fn)
@@ -184,7 +230,7 @@ class BusinessLogic:
                 fw_dir = zip_infolist[0].filename
             else:
                 log.fatal(f'Could not find FW top level directory in {zip_infolist}!')
-                exit(1)
+                sys.exit(1)
             zip_ref.extractall()
         log.info(f'Extracted FW to {fw_dir}')
         return fw_dir
@@ -240,6 +286,9 @@ class BusinessLogic:
 
     def build_fw(self):
         config_dest_path = str(Path(self.logic_state.fw_dir, 'configuration_local.hpp').resolve())
+        if QFile.exists(config_dest_path):
+            log.warning(f'Deleting existing configuration file {config_dest_path}')
+            QFile.remove(config_dest_path)
         log.info(f'Copying config file from {self.logic_state.config_file_path} -> {config_dest_path}')
         copy_success = QFile.copy(self.logic_state.config_file_path, config_dest_path)
         if not copy_success:
@@ -247,35 +296,20 @@ class BusinessLogic:
             return
         log.info(f'Building FW environment={self.logic_state.pio_env} dir={self.logic_state.fw_dir}')
 
-        with RedirClickOutput():
-            pio_run(['--environment', self.logic_state.pio_env, '--project-dir', self.logic_state.fw_dir])
+        if self.pio_process is not None:
+            log.error(f'platformio already running! {self.pio_process}')
+            return
+        self.pio_process = ExternalProcess(
+            'platformio',
+            ['run', '--environment', self.logic_state.pio_env, '--project-dir', self.logic_state.fw_dir],
+            self.pio_finished,
+        )
+        self.pio_process.start()
 
-
-class RedirClickOutput:
-    def __init__(self):
-        self.orig_text_stdout = click.utils._default_text_stdout
-        self.orig_text_stderr = click.utils._default_text_stderr
-        self.log = logging.getLogger('')
-
-    def __enter__(self):
-        def redir_factory(log_fn):
-            class LogRedir:
-                @staticmethod
-                def write(s):
-                    log_fn(s)
-
-                @staticmethod
-                def flush():
-                    pass
-
-            return LogRedir
-
-        click.utils._default_text_stdout = redir_factory(self.log.info)
-        click.utils._default_text_stderr = redir_factory(self.log.error)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        click.utils._default_text_stdout = self.orig_text_stdout
-        click.utils._default_text_stderr = self.orig_text_stderr
+    @Slot()
+    def pio_finished(self):
+        log.info(f'platformio finished')
+        self.pio_process = None
 
 
 class MainWidget(QWidget):
@@ -385,16 +419,13 @@ class CustomFormatter(logging.Formatter):
 
 
 def main():
-    if sys.base_prefix == sys.prefix:
-        log.fatal('I should be running in a virtual environment! Something is wrong...')
-        exit(1)
-
+    check_environment()
     app = QApplication(sys.argv)
 
     widget = MainWidget(l_o)
     widget.show()
 
-    exit(app.exec())
+    sys.exit(app.exec())
 
 
 def setup_logging(logger):
@@ -414,6 +445,16 @@ def setup_logging(logger):
     gh.setLevel(logging.DEBUG)
     gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
     logger.addHandler(gh)
+
+
+def check_environment():
+    for exe_name in ['platformio']:
+        log.debug(f'Checking path for {exe_name}')
+        exe_path = QStandardPaths.findExecutable(exe_name)
+        log.debug(f'Path is {exe_path}')
+        if exe_path == '':
+            log.fatal(f'Could not find {exe_name}! I need it!')
+            sys.exit(1)
 
 
 if __name__ == '__main__':
