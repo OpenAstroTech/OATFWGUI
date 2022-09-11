@@ -1,8 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
+import shutil
+
 from PyInstaller.utils.hooks import collect_all
 
+platformio_path = shutil.which('platformio')
+if platformio_path is None:
+    print('Could not find platformio in path!')
+    sys.exit(1)
+
+# start PyInstaller .spec
 datas = []
-binaries = [('./.venv/bin/platformio', 'bin')]
+binaries = [(platformio_path, 'bin')]
 hiddenimports = []
 tmp_ret = collect_all('platformio')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
