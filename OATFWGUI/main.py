@@ -8,20 +8,8 @@ from pathlib import Path
 from PySide6.QtCore import QStandardPaths
 from PySide6.QtWidgets import QApplication
 
-
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
-
-
-def main():
-    setup_environment()
-    check_environment()
-    app = QApplication(sys.argv)
-
-    widget = MainWidget(l_o)
-    widget.show()
-
-    sys.exit(app.exec())
 
 
 def setup_environment():
@@ -44,6 +32,17 @@ def check_environment():
         if exe_path == '':
             log.fatal(f'Could not find {exe_name}! I need it!')
             sys.exit(1)
+
+
+def main():
+    setup_environment()
+    check_environment()
+    app = QApplication(sys.argv)
+
+    widget = MainWidget(l_o)
+    widget.show()
+
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
