@@ -37,11 +37,14 @@ def check_environment():
 def main():
     setup_environment()
     check_environment()
+    log.debug('Creating app')
     app = QApplication(sys.argv)
 
+    log.debug('Creating main widget')
     widget = MainWidget(l_o)
     widget.show()
 
+    log.debug('Executing app')
     sys.exit(app.exec())
 
 

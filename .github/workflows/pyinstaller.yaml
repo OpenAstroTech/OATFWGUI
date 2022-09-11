@@ -2,14 +2,7 @@ on: push
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Use oldest working version of linux, as PyInstaller will use that libc
-        # (old libc is forward compatible, but not backwards compatible)
-        # can't use 18.04 because it doesn't grab the latest PySide6 version for some reason?
-        os: ['windows-2022', 'ubuntu-20.04']
+    runs-on: 'windows-2022'
 
     steps:
     - uses: actions/checkout@v2
@@ -18,7 +11,7 @@ jobs:
         python-version: "3.10"
 
     - run: pip3 install -U pip
-    - run: pip3 install -r requirements-dev.txt pyinstaller
+    - run: pip3 install -r requirements-dev.txt
     - run: pyinstaller OATFWGUI.spec
     - uses: actions/upload-artifact@v2
       with:
