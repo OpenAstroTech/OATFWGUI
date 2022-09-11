@@ -9,6 +9,7 @@ import traceback
 import html
 import os
 from pathlib import Path
+from datetime import datetime
 from typing import List, Tuple, Optional
 from collections import namedtuple
 
@@ -433,7 +434,11 @@ def main():
 def setup_logging(logger):
     logger.setLevel(logging.DEBUG)
     # file handler
-    fh = logging.FileHandler('spam.log')
+    log_dir = 'logs'
+    os.makedirs(log_dir, exist_ok=True)
+    date_str = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
+    log_file = str(Path(log_dir, f'oat_fw_gui_{date_str}.log'))
+    fh = logging.FileHandler(log_file)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(CustomFormatter(colour_type=LogColourTypes.no_colour))
     logger.addHandler(fh)
