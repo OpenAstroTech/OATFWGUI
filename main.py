@@ -7,6 +7,7 @@ import logging
 import enum
 import traceback
 import html
+import os
 from pathlib import Path
 from typing import List, Tuple, Optional
 from collections import namedtuple
@@ -419,6 +420,7 @@ class CustomFormatter(logging.Formatter):
 
 
 def main():
+    setup_environment()
     check_environment()
     app = QApplication(sys.argv)
 
@@ -445,6 +447,18 @@ def setup_logging(logger):
     gh.setLevel(logging.DEBUG)
     gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
     logger.addHandler(gh)
+
+
+def setup_environment():
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        log.info('Running in pyinstaller bundle')
+        mei_path = getattr(sys, '_MEIPASS')
+        log.info(f'_MEIPASS is {mei_path}')
+        bin_path = Path(mei_path, 'bin')
+        log.info(f'Adding {bin_path} to system path')
+        os.environ['PATH'] += os.pathsep + str(bin_path)
+    else:
+        log.info('Not running in pyinstaller bundle')
 
 
 def check_environment():

@@ -1,3 +1,6 @@
 *.zip
 *venv*/
 .idea/
+*.log
+build_*/
+dist*/
