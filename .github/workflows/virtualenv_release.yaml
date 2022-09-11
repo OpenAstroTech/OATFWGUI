@@ -1,0 +1,22 @@
+on: push
+
+jobs:
+  build:
+    runs-on: 'ubuntu-20.04'
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+
+    - run: pip3 install -U pip
+    - run: pip3 install -r requirements-dev.txt
+    - run: virtualenv --always-copy --no-periodic-update dist/baked_venv
+    - run: ./dist/baked_venv/bin/pip3 install -r requirements.txt
+    - run: cp -rv OATFWGUI dist/
+    - run: cp -v scripts/OATFWGUI_Linux.sh dist/
+    - uses: actions/upload-artifact@v2
+      with:
+        name: OATFWGUI_${{ runner.os }}_${{ runner.arch }}
+        path: dist/*

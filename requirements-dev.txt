@@ -1,2 +1,3 @@
 -r requirements.txt
 pyinstaller~=5.4
+virtualenv~=20.16.5
