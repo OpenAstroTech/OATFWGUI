@@ -11,5 +11,5 @@ pushd $REPO_DIR
 --collect-all=platformio \
 --add-binary=./.venv/bin/platformio:$MEI_BIN_DIR \
  "$@" \
-./main.py
+./OATFWGUI/main.py
 popd

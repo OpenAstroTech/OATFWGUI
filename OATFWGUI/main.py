@@ -4,19 +4,18 @@ import sys
 import zipfile
 import re
 import logging
-import enum
 import traceback
-import html
 import os
 from pathlib import Path
-from datetime import datetime
-from typing import List, Tuple, Optional
+from typing import List, Optional
 from collections import namedtuple
 
 from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QThreadPool, QFile, QProcess, QStandardPaths
 from PySide6.QtWidgets import *
 
 import requests
+
+from log_utils import LogObject, setup_logging
 
 
 class WorkerSignals(QObject):
@@ -315,7 +314,7 @@ class BusinessLogic:
 
 
 class MainWidget(QWidget):
-    def __init__(self, log_object: QObject):
+    def __init__(self, log_object: LogObject):
         QWidget.__init__(self)
 
         # widgets
@@ -360,66 +359,6 @@ class MainWidget(QWidget):
         self.logic = BusinessLogic(self)
 
 
-class LogObject(QObject):
-    log_signal = Signal(str)
-
-    def __init__(self):
-        super().__init__()
-
-    def write(self, s):
-        # TODO: Could buffer if QMetaMethod.fromSignal worked?
-        self.log_signal.emit(s)
-
-
-class LogColourTypes(enum.Enum):
-    no_colour = enum.auto()
-    html = enum.auto()
-    terminal = enum.auto()
-
-
-class CustomFormatter(logging.Formatter):
-    def __init__(self, colour_type: LogColourTypes = LogColourTypes.no_colour):
-        super().__init__(fmt='%(asctime)s:%(levelname)s:%(message)s')
-        self.colour_type = colour_type
-
-    def _colour_terminal(self, levelno: int) -> Tuple[str, str]:
-        grey = "\x1b[38;20m"
-        yellow = "\x1b[33;20m"
-        red = "\x1b[31;20m"
-        bold_red = "\x1b[31;1m"
-        reset = "\x1b[0m"
-
-        pre, post = {
-            logging.DEBUG: (grey, reset),
-            logging.INFO: (grey, reset),
-            logging.WARNING: (yellow, reset),
-            logging.ERROR: (red, reset),
-            logging.CRITICAL: (bold_red, reset),
-        }.get(levelno, ('', ''))
-        return pre, post
-
-    def _colour_html(self, levelno: int) -> Tuple[str, str]:
-        pre, post = {
-            logging.DEBUG: ('<p style="color:grey">', '</p>'),
-            logging.INFO: ('<p style="color:grey">', '</p>'),
-            logging.WARNING: ('<p style="color:yellow">', '</p>'),
-            logging.ERROR: ('<p style="color:red">', '</p>'),
-            logging.CRITICAL: ('<p style="color:red">', '</p>'),
-        }.get(levelno, ('', ''))
-        return pre, post
-
-    def format(self, record):
-        if self.colour_type == LogColourTypes.terminal:
-            pre, post = self._colour_terminal(record.levelno)
-            log_str = pre + super().format(record) + post
-        elif self.colour_type == LogColourTypes.html:
-            pre, post = self._colour_html(record.levelno)
-            log_str = pre + html.escape(super().format(record)) + post
-        else:
-            log_str = super().format(record)
-        return log_str
-
-
 def main():
     setup_environment()
     check_environment()
@@ -429,29 +368,6 @@ def main():
     widget.show()
 
     sys.exit(app.exec())
-
-
-def setup_logging(logger):
-    logger.setLevel(logging.DEBUG)
-    # file handler
-    log_dir = 'logs'
-    os.makedirs(log_dir, exist_ok=True)
-    date_str = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
-    log_file = str(Path(log_dir, f'oat_fw_gui_{date_str}.log'))
-    fh = logging.FileHandler(log_file)
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(CustomFormatter(colour_type=LogColourTypes.no_colour))
-    logger.addHandler(fh)
-    # console handler
-    ch = logging.StreamHandler(stream=sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(CustomFormatter(colour_type=LogColourTypes.terminal))
-    logger.addHandler(ch)
-    # gui handler
-    gh = logging.StreamHandler(stream=l_o)
-    gh.setLevel(logging.DEBUG)
-    gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
-    logger.addHandler(gh)
 
 
 def setup_environment():
@@ -479,6 +395,6 @@ def check_environment():
 if __name__ == '__main__':
     log = logging.getLogger('')
     l_o = LogObject()
-    setup_logging(log)
+    setup_logging(log, l_o)
     log.debug('Logging initialized')
     main()
