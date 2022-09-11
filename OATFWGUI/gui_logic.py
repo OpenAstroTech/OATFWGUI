@@ -6,7 +6,7 @@ from typing import List, Optional
 from collections import namedtuple
 from pathlib import Path
 
-from PySide6.QtCore import Slot, QThreadPool, QFile
+from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess
 from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout
 
 import requests
@@ -43,6 +43,7 @@ class BusinessLogic:
         main_app.wBtn_select_local_config.clicked.connect(self.open_local_config_file)
         main_app.wCombo_pio_env.currentIndexChanged.connect(self.pio_combo_box_changed)
         main_app.wBtn_build_fw.clicked.connect(self.spawn_worker_thread(self.build_fw))
+        main_app.wBtn_upload_fw.clicked.connect(self.spawn_worker_thread(self.upload_fw))
 
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)  # Only one worker
@@ -215,16 +216,54 @@ class BusinessLogic:
         if self.pio_process is not None:
             log.error(f'platformio already running! {self.pio_process}')
             return
+
         self.pio_process = ExternalProcess(
             'platformio',
-            ['run', '--environment', self.logic_state.pio_env, '--project-dir', self.logic_state.fw_dir],
-            self.pio_finished,
+            ['run',
+             '--environment', self.logic_state.pio_env,
+             '--project-dir', self.logic_state.fw_dir,
+             '--verbose'
+             ],
+            self.pio_build_finished,
+        )
+        self.pio_process.start()
+
+    def upload_fw(self):
+        if self.pio_process is not None:
+            log.error(f'platformio already running! {self.pio_process}')
+            return
+
+        self.pio_process = ExternalProcess(
+            'platformio',
+            ['run',
+             '--environment', self.logic_state.pio_env,
+             '--project-dir', self.logic_state.fw_dir,
+             '--verbose'
+             '--target', 'upload'
+             ],
+            self.pio_upload_finished,
         )
         self.pio_process.start()
 
     @Slot()
-    def pio_finished(self):
-        log.info(f'platformio finished')
+    def pio_build_finished(self):
+        log.info(f'platformio build finished')
+        exit_state = self.pio_process.qproc.exitCode()
+        if exit_state == QProcess.NormalExit:
+            log.info('Normal exit')
+            self.main_app.wBtn_upload_fw.setDisabled(False)
+        else:
+            log.error('Did not exit normally')
+        self.pio_process = None
+
+    @Slot()
+    def pio_upload_finished(self):
+        log.info(f'platformio upload finished')
+        exit_state = self.pio_process.qproc.exitCode()
+        if exit_state == QProcess.NormalExit:
+            log.info('Normal exit')
+        else:
+            log.error('Did not exit normally')
         self.pio_process = None
 
 
