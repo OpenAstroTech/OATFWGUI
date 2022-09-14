@@ -202,7 +202,7 @@ class BusinessLogic:
         self.worker_finished()
 
     def build_fw(self):
-        config_dest_path = str(Path(self.logic_state.fw_dir, 'configuration_local.hpp').resolve())
+        config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
         if QFile.exists(config_dest_path):
             log.warning(f'Deleting existing configuration file {config_dest_path}')
             QFile.remove(config_dest_path)
@@ -238,7 +238,7 @@ class BusinessLogic:
             ['run',
              '--environment', self.logic_state.pio_env,
              '--project-dir', self.logic_state.fw_dir,
-             '--verbose'
+             '--verbose',
              '--target', 'upload'
              ],
             self.pio_upload_finished,
