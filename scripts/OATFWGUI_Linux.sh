@@ -2,4 +2,92 @@
 set -e
 # This is the entry point for the "compiled" Linux app
 
-./baked_venv/bin/python OATFWGUI/main.py "$@"
+# list_include_item "10 11 12" "2"
+function list_include_item {
+  local list="$1"
+  local item="$2"
+  if [[ $list =~ (^|[[:space:]])"$item"($|[[:space:]]) ]] ; then
+    # yes, list include item
+    return 0
+  else
+    return 1
+  fi
+}
+
+function check_py_version {
+  local PY_VER_RAW=$($PYTHON --version)
+  echo "Python version: $PY_VER_RAW"
+  if ! [[ $PY_VER_RAW =~ ([[:digit:]]+)\.([[:digit:]]+)\.([[:digit:]]+) ]]; then
+    echo "Could not match python version! Not sure what's going on."
+    return 1
+  fi
+  local PY_VER_ALL=${BASH_REMATCH[0]}
+  local PY_VER_MAJ=${BASH_REMATCH[1]}
+  local PY_VER_MIN=${BASH_REMATCH[2]}
+  local PY_VER_PAT=${BASH_REMATCH[3]}
+
+  # Only support python 3
+  if ! list_include_item '3' $PY_VER_MAJ; then
+    echo "Python major version $PY_VER_MAJ ($PY_VER_ALL) is not supported"
+    return 1
+  fi
+  # Only support 3.6+
+  if ! list_include_item '6 7 8 9 10 11' $PY_VER_MIN; then
+    echo "Python minor version $PY_VER_MIN ($PY_VER_ALL) is not supported"
+    return 1
+  fi
+  return 0
+}
+
+function set_supported_python_path {
+  # Check the that one of (python, python3) is supported
+  if ! command -v python3 > /dev/null; then
+    # ok, python3 not available. Try python
+    if ! command -v python > /dev/null; then
+      # python not available either
+      echo "Could not find a python install. (tried python3, python)."
+      echo "Please install python3"
+      exit 1
+    else
+      # python is a command
+      PYTHON=$(command -v python)
+      if ! check_py_version; then
+        # check_py_version already gives an error message
+        echo "python version is not valid (tried python3, but it's not installed)"
+        exit 1
+      fi
+      # Ok! python is a valid command, and is a supported version
+    fi
+  else
+    # python3 is a command
+    PYTHON=$(command -v python3)
+    if ! check_py_version; then
+      # check_py_version already gives an error message
+      echo "python3 version is not valid"
+      exit 1
+    fi
+  fi
+}
+
+# Main script logic
+set_supported_python_path  # This sets $PYTHON
+echo "Python command is $PYTHON"
+# check venv is available
+if ! $PYTHON -c 'import venv' > /dev/null; then
+  echo "Python 'venv' module is not installed. Please install it into the $PYTHON environment"
+  exit 1
+fi
+
+VENV_PATH='./.venv_OATFWGUI'
+if [ ! -d "$VENV_PATH" ]; then
+  echo "$VENV_PATH is not present, installing virtual environment"
+  $PYTHON -m venv --prompt 'OATFWGUI>' "$VENV_PATH"
+  echo "Upgrading pip"
+  $VENV_PATH/bin/pip install --upgrade pip
+  echo "Installing requirements"
+  $VENV_PATH/bin/pip install --requirement ./requirements.txt
+fi
+# activate virtual environment
+. $VENV_PATH/bin/activate
+# now can can just run python -- no need to use system $PYTHON
+python3 OATFWGUI/main.py "$@"
