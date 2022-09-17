@@ -6,14 +6,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
       with:
         python-version: "3.10"
+        cache: 'pip'
 
-    - run: pip3 install -U pip
-    - run: pip3 install -r requirements-dev.txt
-    - run: pyinstaller OATFWGUI.spec
-    - uses: actions/upload-artifact@v2
+    - name: Upgrade pip
+      run: pip install --upgrade pip
+    - name: Install requirements
+      run: pip install --requirement requirements-dev.txt
+    - name: Run PyInstaller
+      run: pyinstaller OATFWGUI.spec
+    - name: Smoke test
+      run: ./dist/OATFWGUI/OATFWGUI.exe --no-gui
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
       with:
         name: OATFWGUI_${{ runner.os }}_${{ runner.arch }}
         path: dist/*

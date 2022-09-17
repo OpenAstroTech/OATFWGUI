@@ -88,6 +88,6 @@ if [ ! -d "$VENV_PATH" ]; then
   $VENV_PATH/bin/pip install --requirement ./requirements.txt
 fi
 # activate virtual environment
-. $VENV_PATH/bin/activate
+source $VENV_PATH/bin/activate
 # now can can just run python -- no need to use system $PYTHON
 python3 OATFWGUI/main.py "$@"
