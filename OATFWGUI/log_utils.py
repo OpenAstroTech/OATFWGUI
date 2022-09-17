@@ -88,6 +88,6 @@ def setup_logging(logger, qt_log_obj: LogObject):
     logger.addHandler(ch)
     # gui handler
     gh = logging.StreamHandler(stream=qt_log_obj)
-    gh.setLevel(logging.DEBUG)
+    gh.setLevel(logging.INFO)
     gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
     logger.addHandler(gh)

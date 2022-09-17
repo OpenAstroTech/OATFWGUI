@@ -11,7 +11,6 @@ from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButt
 
 import requests
 
-from __init__ import __version__
 from log_utils import LogObject
 from qt_extensions import Worker, ExternalProcess, QBusyIndicatorGoodBad, BusyIndicatorState
 
@@ -289,7 +288,6 @@ class BusinessLogic:
 class MainWidget(QWidget):
     def __init__(self, log_object: LogObject):
         QWidget.__init__(self)
-        self.setWindowTitle(f'OAT FirmWare GUI - {__version__}')
 
         # widgets
         self.wMsg_fw_version = QLabel('Select firmware version:')
@@ -333,7 +331,6 @@ class MainWidget(QWidget):
                     # next widget is None, expand column
                     colSpan += 1
                 if widget is not None:
-                    print(widget, y, x, rowSpan, colSpan)
                     self.g_layout.addWidget(widget, y, x, rowSpan, colSpan)
         self.g_layout.setAlignment(Qt.AlignTop)
 
