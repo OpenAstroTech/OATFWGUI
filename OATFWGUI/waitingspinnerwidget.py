@@ -27,9 +27,11 @@ SOFTWARE.
 
 import math
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PySide6.QtCore import QTimer, QRect
+from PySide6.QtGui import Qt, QColor, QPainter
+from PySide6.QtWidgets import QWidget
+
+# Source: https://github.com/z3ntu/QtWaitingSpinner
 
 
 class QtWaitingSpinner(QWidget):
@@ -39,16 +41,16 @@ class QtWaitingSpinner(QWidget):
         self._centerOnParent = centerOnParent
         self._disableParentWhenSpinning = disableParentWhenSpinning
 
-        # WAS IN initialize()
-        self._color = QColor(Qt.black)
+        self._color = QColor(Qt.darkGray)
         self._roundness = 100.0
-        self._minimumTrailOpacity = 3.14159265358979323846
+        self._minimumTrailOpacity = math.pi
         self._trailFadePercentage = 80.0
-        self._revolutionsPerSecond = 1.57079632679489661923
+        self._revolutionsPerSecond = math.pi / 2
         self._numberOfLines = 20
         self._lineLength = 10
         self._lineWidth = 2
         self._innerRadius = 10
+        self._autoSizeRatio = 0.5
         self._currentCounter = 0
         self._isSpinning = False
 
@@ -57,7 +59,6 @@ class QtWaitingSpinner(QWidget):
         self.updateSize()
         self.updateTimer()
         self.hide()
-        # END initialize()
 
         self.setWindowModality(modality)
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -71,18 +72,29 @@ class QtWaitingSpinner(QWidget):
         if self._currentCounter >= self._numberOfLines:
             self._currentCounter = 0
 
+        if self._autoSizeRatio is not None:
+            max_width = painter.device().width()
+            max_height = painter.device().height()
+            bounding_size = min(max_width, max_height)
+            line_len = self._autoSizeRatio * bounding_size
+            inner_rad = self._autoSizeRatio * bounding_size
+        else:
+            inner_rad = self._innerRadius
+            line_len = self._lineLength
+
+        outer_radius = inner_rad + line_len
         painter.setPen(Qt.NoPen)
         for i in range(0, self._numberOfLines):
             painter.save()
-            painter.translate(self._innerRadius + self._lineLength, self._innerRadius + self._lineLength)
+            painter.translate(outer_radius, outer_radius)
             rotateAngle = float(360 * i) / float(self._numberOfLines)
             painter.rotate(rotateAngle)
-            painter.translate(self._innerRadius, 0)
+            painter.translate(inner_rad, 0)
             distance = self.lineCountDistanceFromPrimary(i, self._currentCounter, self._numberOfLines)
             color = self.currentLineColor(distance, self._numberOfLines, self._trailFadePercentage,
                                           self._minimumTrailOpacity, self._color)
             painter.setBrush(color)
-            rect = QRect(0, int(-self._lineWidth / 2), int(self._lineLength), int(self._lineWidth))
+            rect = QRect(0, int(-self._lineWidth / 2), int(line_len), int(self._lineWidth))
             painter.drawRoundedRect(rect, self._roundness, self._roundness, Qt.RelativeSize)
             painter.restore()
 
@@ -179,8 +191,9 @@ class QtWaitingSpinner(QWidget):
         self.update()
 
     def updateSize(self):
-        size = int((self._innerRadius + self._lineLength) * 2)
-        self.setFixedSize(size, size)
+        pass
+        # size = int((self._innerRadius + self._lineLength) * 2)
+        # self.setFixedSize(size, size)
 
     def updateTimer(self):
         self._timer.setInterval(int(1000 / (self._numberOfLines * self._revolutionsPerSecond)))

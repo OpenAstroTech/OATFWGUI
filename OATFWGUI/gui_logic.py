@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButt
 import requests
 
 from log_utils import LogObject
-from qt_extensions import Worker, ExternalProcess
+from qt_extensions import Worker, ExternalProcess, QBusyIndicatorGoodBad, BusyIndicatorState
 
 log = logging.getLogger('')
 FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
@@ -112,6 +112,7 @@ class BusinessLogic:
         main_app.wBtn_download_fw.setDisabled(False)
 
     def download_and_extract_fw(self) -> str:
+        self.main_app.wSpn_download.setState(BusyIndicatorState.BUSY)
         fw_idx = self.main_app.wCombo_fw_version.currentIndex()
         zip_url = self.logic_state.release_list[fw_idx].url
         zipfile_name = self.download_fw(zip_url)
@@ -122,6 +123,7 @@ class BusinessLogic:
 
     @staticmethod
     def download_and_extract_fw_result(main_app: 'MainWidget', pio_environments: List[PioEnv]):
+        main_app.wSpn_download.setState(BusyIndicatorState.GOOD)
         # Add all the platformio environments to the combo box
         main_app.wCombo_pio_env.clear()
         for pio_env_name in pio_environments:
@@ -202,6 +204,8 @@ class BusinessLogic:
         self.worker_finished()
 
     def build_fw(self):
+        self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
+
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
         if QFile.exists(config_dest_path):
             log.warning(f'Deleting existing configuration file {config_dest_path}')
@@ -210,11 +214,13 @@ class BusinessLogic:
         copy_success = QFile.copy(self.logic_state.config_file_path, config_dest_path)
         if not copy_success:
             log.error(f'Could not copy config file to {config_dest_path}')
+            self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
             return
         log.info(f'Building FW environment={self.logic_state.pio_env} dir={self.logic_state.fw_dir}')
 
         if self.pio_process is not None:
             log.error(f'platformio already running! {self.pio_process}')
+            self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
             return
 
         self.pio_process = ExternalProcess(
@@ -229,6 +235,7 @@ class BusinessLogic:
         self.pio_process.start()
 
     def upload_fw(self):
+        self.main_app.wSpn_upload.setState(BusyIndicatorState.BUSY)
         if self.pio_process is not None:
             log.error(f'platformio already running! {self.pio_process}')
             return
@@ -251,9 +258,11 @@ class BusinessLogic:
         exit_state = self.pio_process.qproc.exitCode()
         if exit_state == QProcess.NormalExit:
             log.info('Normal exit')
+            self.main_app.wSpn_build.setState(BusyIndicatorState.GOOD)
             self.main_app.wBtn_upload_fw.setDisabled(False)
         else:
             log.error('Did not exit normally')
+            self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
         self.pio_process = None
 
     @Slot()
@@ -262,8 +271,10 @@ class BusinessLogic:
         exit_state = self.pio_process.qproc.exitCode()
         if exit_state == QProcess.NormalExit:
             log.info('Normal exit')
+            self.main_app.wSpn_upload.setState(BusyIndicatorState.GOOD)
         else:
             log.error('Did not exit normally')
+            self.main_app.wSpn_upload.setState(BusyIndicatorState.BAD)
         self.pio_process = None
 
 
@@ -277,6 +288,7 @@ class MainWidget(QWidget):
         self.wCombo_fw_version.setPlaceholderText('Grabbing FW Versions...')
         self.wBtn_download_fw = QPushButton('Download')
         self.wBtn_download_fw.setDisabled(True)
+        self.wSpn_download = QBusyIndicatorGoodBad()
 
         self.wMsg_pio_env = QLabel('Select board:')
         self.wCombo_pio_env = QComboBox()
@@ -285,9 +297,11 @@ class MainWidget(QWidget):
         self.wBtn_build_fw = QPushButton('Build FW')
         self.wBtn_build_fw.setDisabled(True)
         self.wMsg_config_path = QLabel('No config file selected')
+        self.wSpn_build = QBusyIndicatorGoodBad()
 
         self.wBtn_upload_fw = QPushButton('Upload FW')
         self.wBtn_upload_fw.setDisabled(True)
+        self.wSpn_upload = QBusyIndicatorGoodBad()
 
         self.logText = QPlainTextEdit()
         self.logText.setLineWrapMode(QPlainTextEdit.NoWrap)
@@ -296,10 +310,10 @@ class MainWidget(QWidget):
         # layout
         self.layout = QGridLayout(self)
         layout_arr = [
-            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, None, self.logText],
+            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, self.wSpn_download, self.logText],
             [self.wMsg_pio_env, self.wCombo_pio_env, self.wBtn_select_local_config, self.wBtn_build_fw],
-            [self.wMsg_config_path],
-            [self.wBtn_upload_fw]
+            [self.wMsg_config_path, self.wSpn_build],
+            [self.wBtn_upload_fw, self.wSpn_upload]
         ]
         for y, row_arr in enumerate(layout_arr):
             for x, widget in enumerate(row_arr):
