@@ -7,12 +7,16 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    # Fixes a bug when running the smoke test
+    # https://stackoverflow.com/a/67205123
+    - name: Install OpenGL
+      run: sudo apt-get install freeglut3 freeglut3-dev
     - run: mkdir dist/
     - run: cp -rv OATFWGUI/ dist/
     - run: cp -v scripts/OATFWGUI_Linux.sh dist/
     - run: cp -v requirements.txt dist/
     - name: Smoke test
-      run: ./dist/OATFWGUI/OATFWGUI_Linux.sh --no-gui
+      run: QT_QPA_PLATFORM=offscreen ./dist/OATFWGUI_Linux.sh --no-gui
     # Need to tar before upload else file permissions are lost :/
     - name: Tar files
       run: tar -cvf dist.tar ./dist

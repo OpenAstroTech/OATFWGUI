@@ -4,13 +4,14 @@ import sys
 import logging
 import os
 import argparse
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QStandardPaths, Slot
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtGui import QAction, QActionGroup
 
-from __init__ import __version__
+from _version import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
 
@@ -119,6 +120,8 @@ def main():
         retcode = app.exec()
     else:
         log.debug('NOT executing app')
+        # Wait a bit before exiting, prevents Qt complaining about deleted objects
+        time.sleep(1.0)
         retcode = 0
     sys.exit(retcode)
 
