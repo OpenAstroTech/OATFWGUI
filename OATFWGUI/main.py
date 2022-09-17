@@ -3,6 +3,7 @@
 import sys
 import logging
 import os
+import argparse
 from pathlib import Path
 
 from PySide6.QtCore import QStandardPaths, Slot
@@ -12,6 +13,10 @@ from PySide6.QtGui import QAction, QActionGroup
 from __init__ import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
+
+parser = argparse.ArgumentParser('Graphical way to build and load OAT Firmware')
+parser.add_argument('--no-gui', action='store_true',
+                    help='Do not start the graphics, exit just before then (used as a basic functionality test)')
 
 
 def setup_environment():
@@ -109,11 +114,17 @@ def main():
     widget = MainWindow()
     widget.show()
 
-    log.debug('Executing app')
-    sys.exit(app.exec())
+    if not args.no_gui:
+        log.debug('Executing app')
+        retcode = app.exec()
+    else:
+        log.debug('NOT executing app')
+        retcode = 0
+    sys.exit(retcode)
 
 
 if __name__ == '__main__':
+    args = parser.parse_args()
     log = logging.getLogger('')
     l_o = LogObject()
     setup_logging(log, l_o)
