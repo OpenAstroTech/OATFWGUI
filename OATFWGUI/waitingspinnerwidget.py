@@ -76,8 +76,8 @@ class QtWaitingSpinner(QWidget):
             max_width = painter.device().width()
             max_height = painter.device().height()
             bounding_size = min(max_width, max_height)
-            line_len = self._autoSizeRatio * bounding_size
-            inner_rad = self._autoSizeRatio * bounding_size
+            line_len = (self._autoSizeRatio / 2) * bounding_size
+            inner_rad = (self._autoSizeRatio / 2) * bounding_size
         else:
             inner_rad = self._innerRadius
             line_len = self._lineLength

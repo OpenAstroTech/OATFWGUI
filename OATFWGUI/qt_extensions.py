@@ -3,9 +3,10 @@ import traceback
 import logging
 import math
 import enum
+from typing import Optional, Tuple
 
-from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QProcess, Qt
-from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout
+from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QProcess, Qt, QSize
+from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QSizePolicy
 from PySide6.QtGui import QPainter, QColor, QPen
 
 from waitingspinnerwidget import QtWaitingSpinner
@@ -93,6 +94,7 @@ class ExternalProcess:
         }.get(state)
         log.info(f'{self.proc_name}:State changed: {state_name}')
 
+
 class BusyIndicatorState(enum.Enum):
     NONE = enum.auto()
     BUSY = enum.auto()
@@ -101,7 +103,7 @@ class BusyIndicatorState(enum.Enum):
 
 
 class QBusyIndicatorGoodBad(QWidget):
-    def __init__(self):
+    def __init__(self, fixed_size: Optional[Tuple[int, int]] = None):
         super().__init__()
         self.wSpn = QtWaitingSpinner(self, centerOnParent=False)
         self.wGood = QIndicatorGood(self)
@@ -121,7 +123,13 @@ class QBusyIndicatorGoodBad(QWidget):
         self.setWindowModality(Qt.NonModal)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
+        if fixed_size is not None:
+            self.setFixedSize(QSize(*fixed_size))
+        self.size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.setSizePolicy(self.size_policy)
+
         self.setState(BusyIndicatorState.NONE)
+        self.setAttribute(Qt.WA_DontShowOnScreen)
         self.show()
 
     def setState(self, state: BusyIndicatorState):

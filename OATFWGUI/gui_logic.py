@@ -6,8 +6,8 @@ from typing import List, Optional
 from collections import namedtuple
 from pathlib import Path
 
-from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess
-from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout
+from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
+from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout, QHBoxLayout
 
 import requests
 
@@ -75,10 +75,11 @@ class BusinessLogic:
         if worker_name == self.get_fw_versions.__name__ and self.logic_state.release_list is not None:
             self.get_fw_versions_result(self.main_app, self.logic_state.release_list)
         elif worker_name == self.download_and_extract_fw.__name__ and self.logic_state.pio_envs is not None:
+            self.logic_state.pio_env = None
             self.download_and_extract_fw_result(self.main_app, self.logic_state.pio_envs)
 
         if self.logic_state.config_file_path is not None:
-            self.main_app.wMsg_config_path.setText(f'Local configuration file: {self.logic_state.config_file_path}')
+            self.main_app.wMsg_config_path.setText(f'Local configuration file:\n{self.logic_state.config_file_path}')
 
         # check requirements to unlock the build button
         build_reqs = [
@@ -87,6 +88,8 @@ class BusinessLogic:
         ]
         if all(r is not None for r in build_reqs):
             self.main_app.wBtn_build_fw.setDisabled(False)
+        else:
+            self.main_app.wBtn_build_fw.setDisabled(True)
 
     def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
@@ -188,7 +191,7 @@ class BusinessLogic:
 
     @Slot()
     def pio_combo_box_changed(self, idx: int):
-        if self.logic_state.pio_envs is not None:
+        if self.logic_state.pio_envs is not None and idx != -1:
             self.logic_state.pio_env = self.logic_state.pio_envs[idx].raw_name
             # manually update GUI
             self.worker_finished()
@@ -207,15 +210,19 @@ class BusinessLogic:
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
 
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
-        if QFile.exists(config_dest_path):
-            log.warning(f'Deleting existing configuration file {config_dest_path}')
-            QFile.remove(config_dest_path)
-        log.info(f'Copying config file from {self.logic_state.config_file_path} -> {config_dest_path}')
-        copy_success = QFile.copy(self.logic_state.config_file_path, config_dest_path)
-        if not copy_success:
-            log.error(f'Could not copy config file to {config_dest_path}')
-            self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
-            return
+        if config_dest_path != self.logic_state.config_file_path:
+            if QFile.exists(config_dest_path):
+                log.warning(f'Deleting existing configuration file {config_dest_path}')
+                QFile.remove(config_dest_path)
+            log.info(f'Copying config file from {self.logic_state.config_file_path} -> {config_dest_path}')
+            copy_success = QFile.copy(self.logic_state.config_file_path, config_dest_path)
+            if not copy_success:
+                log.error(f'Could not copy config file to {config_dest_path}')
+                self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
+                return
+        else:
+            log.info(f'Not copying config file since source and destination are the same: {config_dest_path}')
+
         log.info(f'Building FW environment={self.logic_state.pio_env} dir={self.logic_state.fw_dir}')
 
         if self.pio_process is not None:
@@ -288,7 +295,7 @@ class MainWidget(QWidget):
         self.wCombo_fw_version.setPlaceholderText('Grabbing FW Versions...')
         self.wBtn_download_fw = QPushButton('Download')
         self.wBtn_download_fw.setDisabled(True)
-        self.wSpn_download = QBusyIndicatorGoodBad()
+        self.wSpn_download = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
         self.wMsg_pio_env = QLabel('Select board:')
         self.wCombo_pio_env = QComboBox()
@@ -297,28 +304,41 @@ class MainWidget(QWidget):
         self.wBtn_build_fw = QPushButton('Build FW')
         self.wBtn_build_fw.setDisabled(True)
         self.wMsg_config_path = QLabel('No config file selected')
-        self.wSpn_build = QBusyIndicatorGoodBad()
+        self.wSpn_build = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
         self.wBtn_upload_fw = QPushButton('Upload FW')
         self.wBtn_upload_fw.setDisabled(True)
-        self.wSpn_upload = QBusyIndicatorGoodBad()
+        self.wSpn_upload = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
         self.logText = QPlainTextEdit()
         self.logText.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.logText.setReadOnly(True)
 
         # layout
-        self.layout = QGridLayout(self)
+        self.g_layout = QGridLayout()
+
         layout_arr = [
-            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, self.wSpn_download, self.logText],
-            [self.wMsg_pio_env, self.wCombo_pio_env, self.wBtn_select_local_config, self.wBtn_build_fw],
-            [self.wMsg_config_path, self.wSpn_build],
-            [self.wBtn_upload_fw, self.wSpn_upload]
+            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw,         self.wSpn_download],
+            [self.wMsg_pio_env,    self.wCombo_pio_env,    self.wBtn_select_local_config, self.wBtn_build_fw],
+            [self.wMsg_config_path, None, None, self.wSpn_build],
+            [None, None, self.wBtn_upload_fw, self.wSpn_upload]
         ]
         for y, row_arr in enumerate(layout_arr):
             for x, widget in enumerate(row_arr):
+                rowSpan = 1
+                colSpan = 1
+                while x + colSpan < len(row_arr) and row_arr[x + colSpan] is None:
+                    # next widget is None, expand column
+                    colSpan += 1
                 if widget is not None:
-                    self.layout.addWidget(widget, y, x)
+                    print(widget, y, x, rowSpan, colSpan)
+                    self.g_layout.addWidget(widget, y, x, rowSpan, colSpan)
+        self.g_layout.setAlignment(Qt.AlignTop)
+
+        # log window will take up the entire right side
+        self.h_layout = QHBoxLayout(self)
+        self.h_layout.addLayout(self.g_layout)
+        self.h_layout.addWidget(self.logText)
 
         # signals
         log_object.log_signal.connect(self.logText.appendHtml)
