@@ -1,0 +1,25 @@
+name: "Run set_version"
+description: "Run the set_version.py script"
+inputs:
+   venv-bin-dir:
+     required: false
+     description: "directory that contains python and pip"
+     default: bin
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create set_version venv
+      shell: bash
+      run: python -m venv .venv_set_version
+    - name: set_version venv install requirements
+      shell: bash
+      run: .venv_set_version/${{ inputs.venv-bin-dir }}/pip install --requirement ./scripts/requirements_version.txt
+    - name: Set version dev
+      shell: bash
+      if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
+      run: .venv_set_version/${{ inputs.venv-bin-dir }}/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
+    - name: Set version release
+      shell: bash
+      if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
+      run: .venv_set_version/${{ inputs.venv-bin-dir }}/python ./scripts/set_version.py --file OATFWGUI/_version.py release

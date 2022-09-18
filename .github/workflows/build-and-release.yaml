@@ -17,16 +17,10 @@ jobs:
         python-version: "3.10"
         cache: 'pip'
 
-    - name: Create set_version venv
-      run: python -m venv .venv_set_version
-    - name: set_version venv install requirements
-      run: .venv_set_version/Scripts/pip install --requirement ./scripts/requirements_version.txt
-    - name: Set version dev
-      if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
-      run: .venv_set_version/Scripts/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
-    - name: Set version release
-      if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
-      run: .venv_set_version/Scripts/python ./scripts/set_version.py --file OATFWGUI/_version.py release
+    - name: Run set_version script
+      uses: ./.github/actions/run-set_version_script
+      with:
+        venv-bin-dir: Scripts # idk why windows does this different
 
     - name: Upgrade pip
       run: pip install --upgrade pip
@@ -63,16 +57,8 @@ jobs:
         python-version: "3.10"
         cache: 'pip'
 
-    - name: Create set_version venv
-      run: python -m venv .venv_set_version
-    - name: set_version venv install requirements
-      run: .venv_set_version/bin/pip install --requirement ./scripts/requirements_version.txt
-    - name: Set version dev
-      if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
-      run: .venv_set_version/bin/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
-    - name: Set version release
-      if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
-      run: .venv_set_version/bin/python ./scripts/set_version.py --file OATFWGUI/_version.py release
+    - name: Run set_version script
+      uses: ./.github/actions/run-set_version_script
 
     # Fixes a bug when running the smoke test
     # https://stackoverflow.com/a/67205123
