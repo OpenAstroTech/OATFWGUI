@@ -1,0 +1,117 @@
+on: push
+
+jobs:
+  build-pyinstaller:
+    runs-on: 'windows-2022'
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+
+    - name: Create set_version venv
+      shell: bash
+      run: python -m venv .venv_set_version
+    - name: set_version venv install requirements
+      shell: bash
+      run: .venv_set_version/Scripts/pip install --requirement ./scripts/requirements_version.txt
+    - name: Set version dev
+      shell: bash
+      if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
+      run: .venv_set_version/Scripts/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
+    - name: Set version release
+      shell: bash
+      if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
+      run: .venv_set_version/Scripts/python ./scripts/set_version.py --file OATFWGUI/_version.py release
+
+    - name: Upgrade pip
+      run: pip install --upgrade pip
+    - name: Install requirements
+      run: pip install --requirement requirements-dev.txt
+    - name: Run PyInstaller
+      run: pyinstaller OATFWGUI.spec
+
+    - name: Smoke test
+      run: ./dist/OATFWGUI/OATFWGUI.exe --no-gui
+
+    - name: Retrieve version
+      id: version
+      shell: bash
+      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI/OATFWGUI.exe --version)"
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: OATFWGUI_${{ steps.version.outputs.VERSION }}_${{ runner.os }}_${{ runner.arch }}
+        path: dist/*
+
+  build-virtualenv:
+    runs-on: 'ubuntu-20.04'
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+
+    - name: Create set_version venv
+      run: python -m venv .venv_set_version
+    - name: set_version venv install requirements
+      run: .venv_set_version/bin/pip install --requirement ./scripts/requirements_version.txt
+    - name: Set version dev
+      if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
+      run: .venv_set_version/bin/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
+    - name: Set version release
+      if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
+      run: .venv_set_version/bin/python ./scripts/set_version.py --file OATFWGUI/_version.py release
+
+    # Fixes a bug when running the smoke test
+    # https://stackoverflow.com/a/67205123
+    - name: Install OpenGL
+      run: sudo apt-get install freeglut3 freeglut3-dev
+    - run: mkdir dist/
+    - run: cp -rv OATFWGUI/ dist/
+    - run: cp -v scripts/OATFWGUI_Linux.sh dist/
+    - run: cp -v requirements.txt dist/
+
+    - name: Smoke test
+      run: QT_QPA_PLATFORM=offscreen ./dist/OATFWGUI_Linux.sh --no-gui
+
+    - name: Retrieve version
+      id: version
+      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
+
+    # Need to tar before upload else file permissions are lost :/
+    - name: Tar files
+      run: tar -cvf dist.tar ./dist
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: OATFWGUI_${{ steps.version.outputs.VERSION }}_${{ runner.os }}_${{ runner.arch }}
+        path: dist.tar
+
+  publish-release:
+    # only publish release on tags
+    if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
+    needs: [build-pyinstaller, build-virtualenv]
+    runs-on: 'ubuntu-20.04'
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      - run: ls -la artifacts
+#      - name: Publish GitHub release
+#        uses: softprops/action-gh-release@v1
+#        with:
+#          files: |
+#            artifacts/*
+#            LICENSE
