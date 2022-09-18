@@ -1,5 +1,9 @@
 on: push
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build-pyinstaller:
     runs-on: 'windows-2022'
@@ -14,17 +18,13 @@ jobs:
         cache: 'pip'
 
     - name: Create set_version venv
-      shell: bash
       run: python -m venv .venv_set_version
     - name: set_version venv install requirements
-      shell: bash
       run: .venv_set_version/Scripts/pip install --requirement ./scripts/requirements_version.txt
     - name: Set version dev
-      shell: bash
       if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
       run: .venv_set_version/Scripts/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
     - name: Set version release
-      shell: bash
       if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
       run: .venv_set_version/Scripts/python ./scripts/set_version.py --file OATFWGUI/_version.py release
 
@@ -40,7 +40,6 @@ jobs:
 
     - name: Retrieve version
       id: version
-      shell: bash
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI/OATFWGUI.exe --version)"
 
     - name: Upload artifact
@@ -88,14 +87,11 @@ jobs:
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
 
-    # Need to tar before upload else file permissions are lost :/
-    - name: Tar files
-      run: tar -cvf dist.tar ./dist
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: OATFWGUI_${{ steps.version.outputs.VERSION }}_${{ runner.os }}_${{ runner.arch }}
-        path: dist.tar
+        path: dist/*
 
   publish-release:
     # only publish release on tags
@@ -109,9 +105,20 @@ jobs:
         with:
           path: artifacts
       - run: ls -la artifacts
-#      - name: Publish GitHub release
-#        uses: softprops/action-gh-release@v1
-#        with:
-#          files: |
-#            artifacts/*
-#            LICENSE
+      - name: Zip artifacts
+        run: |
+          set -e
+          shopt -s nullglob
+          for dir in artifacts/*/; do
+            out_zip="$(basename $dir).zip"
+            echo "Zipping $dir into $out_zip"
+            zip --recurse-paths "$out_zip" "$dir"
+          done
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            *.zip
