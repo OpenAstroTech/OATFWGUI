@@ -1,11 +1,26 @@
 on: push
 
 jobs:
-  build:
+  build-virtualenv:
     runs-on: 'ubuntu-20.04'
 
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+
+    - name: Create set_version venv
+      run: python -m venv .venv_set_version
+    - name: set_version venv install requirements
+      run: .venv_set_version/bin/pip install --requirement ./scripts/requirements_version.txt
+    - name: Set version dev
+      if: ${{ startsWith(github.ref, 'refs/tags/') == false }}
+      run: .venv_set_version/bin/python ./scripts/set_version.py --file OATFWGUI/_version.py dev
+    - name: Set version release
+      if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
+      run: .venv_set_version/bin/python ./scripts/set_version.py --file OATFWGUI/_version.py release
 
     # Fixes a bug when running the smoke test
     # https://stackoverflow.com/a/67205123
@@ -15,8 +30,10 @@ jobs:
     - run: cp -rv OATFWGUI/ dist/
     - run: cp -v scripts/OATFWGUI_Linux.sh dist/
     - run: cp -v requirements.txt dist/
+
     - name: Smoke test
       run: QT_QPA_PLATFORM=offscreen ./dist/OATFWGUI_Linux.sh --no-gui
+
     # Need to tar before upload else file permissions are lost :/
     - name: Tar files
       run: tar -cvf dist.tar ./dist
