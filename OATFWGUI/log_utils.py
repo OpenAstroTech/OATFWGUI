@@ -50,7 +50,7 @@ class CustomFormatter(logging.Formatter):
 
     def _colour_html(self, levelno: int) -> Tuple[str, str]:
         pre, post = {
-            logging.DEBUG: ('<p style="color:grey">', '</p>'),
+            logging.DEBUG: ('<p style="color:SlateGray">', '</p>'),
             logging.INFO: ('<p style="color:grey">', '</p>'),
             logging.WARNING: ('<p style="color:yellow">', '</p>'),
             logging.ERROR: ('<p style="color:red">', '</p>'),
