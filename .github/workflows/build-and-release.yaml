@@ -42,6 +42,9 @@ jobs:
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI/OATFWGUI.exe --version)"
 
+    # Work around stupid issue that GHA can't store file permissions on artifacts
+    - name: Store which files are executable
+      run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
@@ -87,6 +90,9 @@ jobs:
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
 
+    # Work around stupid issue that GHA can't store file permissions on artifacts
+    - name: Store which files are executable
+      run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
@@ -104,16 +110,36 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
-      - run: ls -la artifacts
+      - name: Restore executable permissions
+        run: |
+          set -e
+          shopt -s nullglob
+          PERM_FILE='restore_executable_permissions.txt'
+          for dir in artifacts/*/; do
+            echo "Entering $dir"
+            pushd "$dir"
+            if [ ! -f "$PERM_FILE" ]; then
+              echo "Could not find permissions file ${PERM_FILE}!"
+              continue
+            fi
+            while IFS= read -r f_path || [ -n "$f_path" ]; do
+              echo "Restoring execution on $f_path"
+              chmod +x "$f_path"
+            done < "$PERM_FILE"
+            rm "$PERM_FILE"
+            popd
+          done
       - name: Zip artifacts
         run: |
           set -e
           shopt -s nullglob
-          for dir in artifacts/*/; do
-            out_zip="$(basename $dir).zip"
+          pushd artifacts/
+          for dir in ./*/; do
+            out_zip="../$(basename $dir).zip"
             echo "Zipping $dir into $out_zip"
-            zip --recurse-paths "$out_zip" "$dir"
+            zip -8 --recurse-paths "$out_zip" "$dir"
           done
+          popd
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v1
         with:
