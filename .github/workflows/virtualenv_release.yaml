@@ -36,11 +36,15 @@ jobs:
     - name: Smoke test
       run: QT_QPA_PLATFORM=offscreen ./dist/OATFWGUI_Linux.sh --no-gui
 
+    - name: Retrieve version
+      id: version
+      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
+
     # Need to tar before upload else file permissions are lost :/
     - name: Tar files
       run: tar -cvf dist.tar ./dist
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: OATFWGUI_${{ runner.os }}_${{ runner.arch }}
+        name: OATFWGUI_${{ steps.version.outputs.VERSION }}_${{ runner.os }}_${{ runner.arch }}
         path: dist.tar

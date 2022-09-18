@@ -18,6 +18,9 @@ from gui_logic import MainWidget
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
 parser.add_argument('--no-gui', action='store_true',
                     help='Do not start the graphics, exit just before then (used as a basic functionality test)')
+parser.add_argument('-v', '--version', action='version',
+                    version=__version__,
+                    help='Print version string and exit')
 
 
 def setup_environment():
