@@ -14,6 +14,30 @@ function list_include_item {
   fi
 }
 
+function check_ldd_version {
+  local LIBC_VER_RAW=$(ldd --version | head -1)
+  echo "LIBC version: $LIBC_VER_RAW"
+  if ! [[ $LIBC_VER_RAW =~ ([[:digit:]]+)\.([[:digit:]]+) ]]; then
+    echo "Could not match LIBC version! Not sure what's going on."
+    return 1
+  fi
+  local LIBC_VER_ALL=${BASH_REMATCH[0]}
+  local LIBC_VER_MAJ=${BASH_REMATCH[1]}
+  local LIBC_VER_MIN=${BASH_REMATCH[2]}
+
+  # Only support libc 2
+  if ! list_include_item '2' $LIBC_VER_MAJ; then
+    echo "LIBC major version $LIBC_VER_MAJ ($LIBC_VER_ALL) is not supported"
+    return 1
+  fi
+  # Only support >= 28
+  if [ "$LIBC_VER_MIN" -lt 28 ]; then
+    echo "LIBC minor version $LIBC_VER_MIN ($LIBC_VER_ALL) is not supported"
+    return 1
+  fi
+  return 0
+}
+
 function check_py_version {
   local PY_VER_RAW=$($PYTHON --version)
   echo "Python version: $PY_VER_RAW"
@@ -31,8 +55,8 @@ function check_py_version {
     echo "Python major version $PY_VER_MAJ ($PY_VER_ALL) is not supported"
     return 1
   fi
-  # Only support 3.6+
-  if ! list_include_item '6 7 8 9 10 11' $PY_VER_MIN; then
+  # Only support 3.7+
+  if ! list_include_item '7 8 9 10 11' $PY_VER_MIN; then
     echo "Python minor version $PY_VER_MIN ($PY_VER_ALL) is not supported"
     return 1
   fi
@@ -40,6 +64,14 @@ function check_py_version {
 }
 
 function set_supported_python_path {
+  if [ -n "${PYTHON+x}" ]; then
+    # PYTHON is being set from the CLI
+    echo "PYTHON overridden: $PYTHON"
+    if check_py_version; then
+        return 0
+    fi
+    echo "Overridden PYTHON not supported. Checking system python versions."
+  fi
   # Check the that one of (python, python3) is supported
   if ! command -v python3 > /dev/null; then
     # ok, python3 not available. Try python
@@ -70,6 +102,10 @@ function set_supported_python_path {
 }
 
 # Main script logic
+if ! check_ldd_version; then
+  echo "Unsupported LIBC version, sorry :/"
+  exit 1
+fi
 set_supported_python_path  # This sets $PYTHON
 echo "Python command is $PYTHON"
 # check venv is available
