@@ -15,7 +15,8 @@ function list_include_item {
 }
 
 function check_ldd_version {
-  local LIBC_VER_RAW=$(ldd --version | head -1)
+  local LIBC_VER_RAW
+  LIBC_VER_RAW=$(ldd --version | head -1)
   echo "LIBC version: $LIBC_VER_RAW"
   if ! [[ $LIBC_VER_RAW =~ ([[:digit:]]+)\.([[:digit:]]+) ]]; then
     echo "Could not match LIBC version! Not sure what's going on."
@@ -26,7 +27,7 @@ function check_ldd_version {
   local LIBC_VER_MIN=${BASH_REMATCH[2]}
 
   # Only support libc 2
-  if ! list_include_item '2' $LIBC_VER_MAJ; then
+  if ! list_include_item '2' "$LIBC_VER_MAJ"; then
     echo "LIBC major version $LIBC_VER_MAJ ($LIBC_VER_ALL) is not supported"
     return 1
   fi
@@ -39,7 +40,8 @@ function check_ldd_version {
 }
 
 function check_py_version {
-  local PY_VER_RAW=$($PYTHON --version)
+  local PY_VER_RAW
+  PY_VER_RAW=$($PYTHON --version)
   echo "Python version: $PY_VER_RAW"
   if ! [[ $PY_VER_RAW =~ ([[:digit:]]+)\.([[:digit:]]+)\.([[:digit:]]+) ]]; then
     echo "Could not match python version! Not sure what's going on."
@@ -48,15 +50,15 @@ function check_py_version {
   local PY_VER_ALL=${BASH_REMATCH[0]}
   local PY_VER_MAJ=${BASH_REMATCH[1]}
   local PY_VER_MIN=${BASH_REMATCH[2]}
-  local PY_VER_PAT=${BASH_REMATCH[3]}
+  # local PY_VER_PAT=${BASH_REMATCH[3]}
 
   # Only support python 3
-  if ! list_include_item '3' $PY_VER_MAJ; then
+  if ! list_include_item '3' "$PY_VER_MAJ"; then
     echo "Python major version $PY_VER_MAJ ($PY_VER_ALL) is not supported"
     return 1
   fi
   # Only support 3.7+
-  if ! list_include_item '7 8 9 10 11' $PY_VER_MIN; then
+  if ! list_include_item '7 8 9 10 11' "$PY_VER_MIN"; then
     echo "Python minor version $PY_VER_MIN ($PY_VER_ALL) is not supported"
     return 1
   fi
