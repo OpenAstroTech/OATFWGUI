@@ -19,7 +19,7 @@ It is a local installation, so to remove it simply delete the folder.
 
 ## Screenshots
 Windows:
-![](assets/screenshot_Windows.jpg)
+![](screenshots/screenshot_Windows.jpg)
 
 Linux:
-![](assets/screenshot_Linux.jpg)
+![](screenshots/screenshot_Linux.jpg)
