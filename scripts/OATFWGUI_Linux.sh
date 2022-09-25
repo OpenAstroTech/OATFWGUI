@@ -108,17 +108,19 @@ if ! check_ldd_version; then
   echo "Unsupported LIBC version, sorry :/"
   exit 1
 fi
-set_supported_python_path  # This sets $PYTHON
-echo "Python command is $PYTHON"
-# check venv is available
-if ! $PYTHON -c 'import venv' > /dev/null; then
-  echo "Python 'venv' module is not installed. Please install it into the $PYTHON environment"
-  exit 1
-fi
 
 VENV_PATH='./.venv_OATFWGUI'
 if [ ! -d "$VENV_PATH" ]; then
   echo "$VENV_PATH is not present, installing virtual environment"
+
+  set_supported_python_path  # This sets $PYTHON
+  echo "Python command is $PYTHON"
+  # check venv is available
+  if ! $PYTHON -c 'import venv' > /dev/null; then
+    echo "Python 'venv' module is not installed. Please install it into the $PYTHON environment"
+    exit 1
+  fi
+
   $PYTHON -m venv --prompt 'OATFWGUI>' "$VENV_PATH"
   echo "Upgrading pip"
   $VENV_PATH/bin/pip install --upgrade pip
