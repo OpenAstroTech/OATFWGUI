@@ -56,6 +56,9 @@ class ExternalProcess:
         self.qproc.setProgram(self.proc_name)
         self.qproc.setArguments(self.proc_args)
 
+        self.stdout_text = ''
+        self.stderr_text = ''
+
         # signals
         self.qproc.readyReadStandardOutput.connect(self.handle_stdout)
         self.qproc.readyReadStandardError.connect(self.handle_stderr)
@@ -77,12 +80,14 @@ class ExternalProcess:
     def handle_stderr(self):
         data = self.qproc.readAllStandardError()
         stderr = bytes(data).decode("utf8")
+        self.stderr_text += stderr
         log.error(stderr)
 
     @Slot()
     def handle_stdout(self):
         data = self.qproc.readAllStandardOutput()
         stdout = bytes(data).decode("utf8")
+        self.stdout_text += stdout
         log.info(stdout)
 
     @Slot()

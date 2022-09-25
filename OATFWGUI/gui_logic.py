@@ -2,6 +2,7 @@ import re
 import logging
 import sys
 import zipfile
+import json
 from typing import List, Optional
 from collections import namedtuple
 from pathlib import Path
@@ -19,13 +20,72 @@ FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
 PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
 
 
+def get_pio_environments(fw_dir: str) -> List[PioEnv]:
+    ini_path = Path(fw_dir, 'platformio.ini')
+    with open(ini_path.resolve(), 'r') as fp:
+        ini_lines = fp.readlines()
+    environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
+    raw_pio_envs = []
+    for environment_line in environment_lines:
+        match = re.search(r'\[env:(.+)\]', environment_line)
+        if match:
+            raw_pio_envs.append(match.group(1))
+    log.info(f'Found pio environments: {raw_pio_envs}')
+
+    # we don't want to build native
+    if 'native' in raw_pio_envs:
+        raw_pio_envs.remove('native')
+    nice_name_lookup = {
+        'ramps': 'RAMPS',
+        'esp32': 'ESP32',
+        'mksgenlv21': 'MKS Gen L v2.1',
+        'mksgenlv2': 'MKS Gen L v2',
+        'mksgenlv1': 'MKS Gen L v1',
+    }
+    pio_environments = []
+    for raw_env in raw_pio_envs:
+        if raw_env in nice_name_lookup:
+            pio_env = PioEnv(nice_name_lookup[raw_env], raw_env)
+        else:
+            pio_env = PioEnv(raw_env, raw_env)
+        pio_environments.append(pio_env)
+    return pio_environments
+
+
+def download_fw(zip_url: str) -> str:
+    log.info(f'Downloading OAT FW from: {zip_url}')
+    resp = requests.get(zip_url)
+    zipfile_name = 'OATFW.zip'
+    with open(zipfile_name, 'wb') as fd:
+        fd.write(resp.content)
+        fd.close()
+    return zipfile_name
+
+
+def extract_fw(zipfile_name: str) -> str:
+    log.info(f'Extracting FW from {zipfile_name}')
+    with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
+        zip_infolist = zip_ref.infolist()
+        if len(zip_infolist) > 0 and zip_infolist[0].is_dir():
+            fw_dir = zip_infolist[0].filename
+        else:
+            log.fatal(f'Could not find FW top level directory in {zip_infolist}!')
+            sys.exit(1)
+        zip_ref.extractall()
+    log.info(f'Extracted FW to {fw_dir}')
+    return fw_dir
+
+
 class LogicState:
     release_list: Optional[List[FWVersion]] = None
     release_idx: Optional[int] = None
     fw_dir: Optional[str] = None
-    pio_envs: Optional[List[PioEnv]] = None
+    pio_envs: List[PioEnv] = []
     pio_env: Optional[str] = None
     config_file_path: Optional[str] = None
+    build_success: bool = False
+    serial_ports: List[str] = []
+    upload_port: Optional[str] = None
 
     def __setattr__(self, key, val):
         log.debug(f'LogicState updated: {key} {getattr(self, key)} -> {val}')
@@ -38,11 +98,13 @@ class BusinessLogic:
         self.pio_process = None
 
         self.main_app = main_app
-        main_app.wBtn_download_fw.setDisabled(False)
+        main_app.wBtn_download_fw.setEnabled(True)
         main_app.wBtn_download_fw.clicked.connect(self.spawn_worker_thread(self.download_and_extract_fw))
         main_app.wBtn_select_local_config.clicked.connect(self.open_local_config_file)
-        main_app.wCombo_pio_env.currentIndexChanged.connect(self.pio_combo_box_changed)
+        main_app.wCombo_pio_env.currentIndexChanged.connect(self.pio_env_combo_box_changed)
         main_app.wBtn_build_fw.clicked.connect(self.spawn_worker_thread(self.build_fw))
+        main_app.wBtn_refresh_ports.clicked.connect(self.spawn_worker_thread(self.refresh_ports))
+        main_app.wCombo_serial_port.currentIndexChanged.connect(self.serial_port_combo_box_changed)
         main_app.wBtn_upload_fw.clicked.connect(self.spawn_worker_thread(self.upload_fw))
 
         self.threadpool = QThreadPool()
@@ -50,6 +112,8 @@ class BusinessLogic:
 
         # Manually spawn a worker to grab tags from GitHub
         self.spawn_worker_thread(self.get_fw_versions)()
+        # Manually spawn a worker to refresh serial ports
+        self.spawn_worker_thread(self.refresh_ports)()
 
     def spawn_worker_thread(self, fn):
         @Slot()
@@ -82,14 +146,18 @@ class BusinessLogic:
             self.main_app.wMsg_config_path.setText(f'Local configuration file:\n{self.logic_state.config_file_path}')
 
         # check requirements to unlock the build button
-        build_reqs = [
-            self.logic_state.config_file_path,
-            self.logic_state.pio_env,
-        ]
-        if all(r is not None for r in build_reqs):
-            self.main_app.wBtn_build_fw.setDisabled(False)
-        else:
-            self.main_app.wBtn_build_fw.setDisabled(True)
+        build_reqs_ok = all([
+            self.logic_state.config_file_path is not None,
+            self.logic_state.pio_env is not None,
+        ])
+        self.main_app.wBtn_build_fw.setEnabled(build_reqs_ok)
+
+        # check requirements to unlock the upload button
+        upload_reqs_ok = all([
+            self.logic_state.build_success == True,
+            self.logic_state.upload_port is not None,
+        ])
+        self.main_app.wBtn_upload_fw.setEnabled(upload_reqs_ok)
 
     def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
@@ -112,16 +180,16 @@ class BusinessLogic:
         for fw_version in fw_versions_list:
             main_app.wCombo_fw_version.addItem(fw_version.nice_name)
         main_app.wCombo_fw_version.setCurrentIndex(0)
-        main_app.wBtn_download_fw.setDisabled(False)
+        main_app.wBtn_download_fw.setEnabled(True)
 
     def download_and_extract_fw(self) -> str:
         self.main_app.wSpn_download.setState(BusyIndicatorState.BUSY)
         fw_idx = self.main_app.wCombo_fw_version.currentIndex()
         zip_url = self.logic_state.release_list[fw_idx].url
-        zipfile_name = self.download_fw(zip_url)
+        zipfile_name = download_fw(zip_url)
 
-        self.logic_state.fw_dir = self.extract_fw(zipfile_name)
-        self.logic_state.pio_envs = self.get_pio_environments(self.logic_state.fw_dir)
+        self.logic_state.fw_dir = extract_fw(zipfile_name)
+        self.logic_state.pio_envs = get_pio_environments(self.logic_state.fw_dir)
         return self.download_and_extract_fw.__name__
 
     @staticmethod
@@ -133,68 +201,14 @@ class BusinessLogic:
             main_app.wCombo_pio_env.addItem(pio_env_name.nice_name)
         main_app.wCombo_pio_env.setPlaceholderText('Select Board')
 
-    @staticmethod
-    def download_fw(zip_url: str) -> str:
-        log.info(f'Downloading OAT FW from: {zip_url}')
-        resp = requests.get(zip_url)
-        zipfile_name = 'OATFW.zip'
-        with open(zipfile_name, 'wb') as fd:
-            fd.write(resp.content)
-            fd.close()
-        return zipfile_name
-
-    @staticmethod
-    def extract_fw(zipfile_name: str) -> str:
-        log.info(f'Extracting FW from {zipfile_name}')
-        with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
-            zip_infolist = zip_ref.infolist()
-            if len(zip_infolist) > 0 and zip_infolist[0].is_dir():
-                fw_dir = zip_infolist[0].filename
-            else:
-                log.fatal(f'Could not find FW top level directory in {zip_infolist}!')
-                sys.exit(1)
-            zip_ref.extractall()
-        log.info(f'Extracted FW to {fw_dir}')
-        return fw_dir
-
-    @staticmethod
-    def get_pio_environments(fw_dir: str) -> List[PioEnv]:
-        ini_path = Path(fw_dir, 'platformio.ini')
-        with open(ini_path.resolve(), 'r') as fp:
-            ini_lines = fp.readlines()
-        environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
-        raw_pio_envs = []
-        for environment_line in environment_lines:
-            match = re.search(r'\[env:(.+)\]', environment_line)
-            if match:
-                raw_pio_envs.append(match.group(1))
-        log.info(f'Found pio environments: {raw_pio_envs}')
-
-        # we don't want to build native
-        if 'native' in raw_pio_envs:
-            raw_pio_envs.remove('native')
-        nice_name_lookup = {
-            'ramps': 'RAMPS',
-            'esp32': 'ESP32',
-            'mksgenlv21': 'MKS Gen L v2.1',
-            'mksgenlv2': 'MKS Gen L v2',
-            'mksgenlv1': 'MKS Gen L v1',
-        }
-        pio_environments = []
-        for raw_env in raw_pio_envs:
-            if raw_env in nice_name_lookup:
-                pio_env = PioEnv(nice_name_lookup[raw_env], raw_env)
-            else:
-                pio_env = PioEnv(raw_env, raw_env)
-            pio_environments.append(pio_env)
-        return pio_environments
-
     @Slot()
-    def pio_combo_box_changed(self, idx: int):
-        if self.logic_state.pio_envs is not None and idx != -1:
+    def pio_env_combo_box_changed(self, idx: int):
+        if self.logic_state.pio_envs and idx != -1:
             self.logic_state.pio_env = self.logic_state.pio_envs[idx].raw_name
             # manually update GUI
             self.worker_finished()
+        else:
+            self.logic_state.pio_env = None
 
     @Slot()
     def open_local_config_file(self):
@@ -241,6 +255,61 @@ class BusinessLogic:
         )
         self.pio_process.start()
 
+    @Slot()
+    def pio_build_finished(self):
+        log.info(f'platformio build finished')
+        exit_state = self.pio_process.qproc.exitCode()
+        if exit_state == QProcess.NormalExit:
+            log.info('Normal exit')
+            self.main_app.wSpn_build.setState(BusyIndicatorState.GOOD)
+            self.logic_state.build_success = True
+        else:
+            log.error('Did not exit normally')
+            self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
+        self.pio_process = None
+
+    def refresh_ports(self):
+        if self.pio_process is not None:
+            log.error(f'platformio already running! {self.pio_process}')
+            return
+
+        self.pio_process = ExternalProcess(
+            'platformio',
+            ['device', 'list', '--serial', '--json-output'],
+            self.pio_refresh_ports_finished,
+        )
+        self.pio_process.start()
+
+    @Slot()
+    def pio_refresh_ports_finished(self):
+        log.info(f'platformio refresh ports finished')
+        exit_state = self.pio_process.qproc.exitCode()
+        if exit_state == QProcess.NormalExit:
+            log.info('Normal exit')
+        else:
+            log.error('Did not exit normally')
+        all_port_data = json.loads(self.pio_process.stdout_text)
+        self.pio_process = None
+        self.logic_state.serial_ports = [port_data['port'] for port_data in all_port_data]
+
+        self.main_app.wCombo_serial_port.clear()
+        for serial_port in self.logic_state.serial_ports:
+            self.main_app.wCombo_serial_port.addItem(serial_port)
+        if len(self.logic_state.serial_ports) > 0:
+            self.main_app.wCombo_serial_port.setCurrentIndex(0)
+        else:
+            self.logic_state.upload_port = None
+            self.main_app.wCombo_serial_port.setCurrentIndex(-1)
+
+    @Slot()
+    def serial_port_combo_box_changed(self, idx: int):
+        if self.logic_state.serial_ports and idx != -1:
+            self.logic_state.upload_port = self.logic_state.serial_ports[idx]
+            # manually update GUI
+            self.worker_finished()
+        else:
+            self.logic_state.upload_port = None
+
     def upload_fw(self):
         self.main_app.wSpn_upload.setState(BusyIndicatorState.BUSY)
         if self.pio_process is not None:
@@ -253,24 +322,12 @@ class BusinessLogic:
              '--environment', self.logic_state.pio_env,
              '--project-dir', self.logic_state.fw_dir,
              '--verbose',
-             '--target', 'upload'
+             '--target', 'upload',
+             '--upload-port', self.logic_state.upload_port,
              ],
             self.pio_upload_finished,
         )
         self.pio_process.start()
-
-    @Slot()
-    def pio_build_finished(self):
-        log.info(f'platformio build finished')
-        exit_state = self.pio_process.qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
-            log.info('Normal exit')
-            self.main_app.wSpn_build.setState(BusyIndicatorState.GOOD)
-            self.main_app.wBtn_upload_fw.setDisabled(False)
-        else:
-            log.error('Did not exit normally')
-            self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
-        self.pio_process = None
 
     @Slot()
     def pio_upload_finished(self):
@@ -294,7 +351,7 @@ class MainWidget(QWidget):
         self.wCombo_fw_version = QComboBox()
         self.wCombo_fw_version.setPlaceholderText('Grabbing FW Versions...')
         self.wBtn_download_fw = QPushButton('Download')
-        self.wBtn_download_fw.setDisabled(True)
+        self.wBtn_download_fw.setEnabled(False)
         self.wSpn_download = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
         self.wMsg_pio_env = QLabel('Select board:')
@@ -302,12 +359,15 @@ class MainWidget(QWidget):
         self.wCombo_pio_env.setPlaceholderText('No FW downloaded yet...')
         self.wBtn_select_local_config = QPushButton('Select local config file')
         self.wBtn_build_fw = QPushButton('Build FW')
-        self.wBtn_build_fw.setDisabled(True)
+        self.wBtn_build_fw.setEnabled(False)
         self.wMsg_config_path = QLabel('No config file selected')
         self.wSpn_build = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
+        self.wBtn_refresh_ports = QPushButton('Refresh ports')
+        self.wCombo_serial_port = QComboBox()
+        self.wCombo_serial_port.setPlaceholderText('No port selected')
         self.wBtn_upload_fw = QPushButton('Upload FW')
-        self.wBtn_upload_fw.setDisabled(True)
+        self.wBtn_upload_fw.setEnabled(False)
         self.wSpn_upload = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
         self.logText = QPlainTextEdit()
@@ -321,7 +381,7 @@ class MainWidget(QWidget):
             [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw,         self.wSpn_download],
             [self.wMsg_pio_env,    self.wCombo_pio_env,    self.wBtn_select_local_config, self.wBtn_build_fw],
             [self.wMsg_config_path, None, None, self.wSpn_build],
-            [None, None, self.wBtn_upload_fw, self.wSpn_upload]
+            [self.wBtn_refresh_ports, self.wCombo_serial_port, self.wBtn_upload_fw, self.wSpn_upload]
         ]
         for y, row_arr in enumerate(layout_arr):
             for x, widget in enumerate(row_arr):
