@@ -28,13 +28,15 @@ jobs:
       run: pip install --requirement requirements-dev.txt
     - name: Run PyInstaller
       run: pyinstaller OATFWGUI.spec
+    - name: Move out of OATFWGUI folder
+      run: mv ./dist/OATFWGUI/* ./dist && rmdir ./dist/OATFWGUI
 
     - name: Smoke test
-      run: ./dist/OATFWGUI/OATFWGUI.exe --no-gui
+      run: ./dist/OATFWGUI.exe --no-gui
 
     - name: Retrieve version
       id: version
-      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI/OATFWGUI.exe --version)"
+      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI.exe --version)"
 
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
