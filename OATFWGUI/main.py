@@ -7,8 +7,8 @@ import argparse
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QStandardPaths, Slot
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtCore import QStandardPaths, Slot, Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel
 from PySide6.QtGui import QAction, QActionGroup
 
 from _version import __version__
@@ -64,6 +64,13 @@ class MainWindow(QMainWindow):
         self.exit_action = QAction('Exit')
         self.exit_action.triggered.connect(self.exit)
         self.file_menu.addAction(self.exit_action)
+
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.bug_hyperlink = QLabel('<a href="https://github.com/julianneswinoga/OATFWGUI/issues">Report a bug</a>')
+        self.bug_hyperlink.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.bug_hyperlink.setOpenExternalLinks(True)
+        self.status_bar.addPermanentWidget(self.bug_hyperlink)
 
         log.debug('Creating main widget')
         self.main_widget = MainWidget(l_o)
