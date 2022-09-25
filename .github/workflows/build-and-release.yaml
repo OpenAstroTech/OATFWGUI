@@ -68,6 +68,7 @@ jobs:
       run: sudo apt-get install freeglut3 freeglut3-dev
     - run: mkdir dist/
     - run: cp -rv OATFWGUI/ dist/
+    - run: cp -rv icons/ dist/
     - run: cp -v scripts/OATFWGUI_Linux.sh dist/
     - run: cp -v requirements.txt dist/
 

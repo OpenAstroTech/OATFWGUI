@@ -10,7 +10,7 @@ if platformio_path is None:
     sys.exit(1)
 
 # start PyInstaller .spec
-datas = []
+datas = [('icons/*', 'icons')]
 binaries = [(platformio_path, 'bin')]
 hiddenimports = []
 tmp_ret = collect_all('platformio')

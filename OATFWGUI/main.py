@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QStandardPaths, Slot, Qt
 from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel
-from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtGui import QAction, QActionGroup, QIcon
 
 from _version import __version__
 from log_utils import LogObject, setup_logging
@@ -49,6 +49,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setWindowTitle(f'OAT FirmWare GUI - {__version__}')
+
+        window_icon_path = Path('icons', 'app_icon.ico')
+        if window_icon_path.is_file():
+            window_icon_path_resolved = str(window_icon_path.resolve())
+            log.debug(f'Loading window icon {window_icon_path_resolved}')
+            self.app_icon = QIcon()
+            self.app_icon.addFile(window_icon_path_resolved)
+            self.setWindowIcon(self.app_icon)
+        else:
+            log.warning(f'Could not find window icon: {window_icon_path}')
 
         self.menu_bar = self.menuBar()
         self.file_menu = self.menu_bar.addMenu('&File')
