@@ -36,7 +36,7 @@ jobs:
 
     - name: Retrieve version
       id: version
-      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI.exe --version)"
+      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI.exe --version | tail -1)"
 
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
