@@ -5,7 +5,7 @@ defaults:
     shell: bash
 
 jobs:
-  build-pyinstaller:
+  build-windows:
     runs-on: 'windows-2022'
 
     steps:
@@ -22,21 +22,33 @@ jobs:
       with:
         venv-bin-dir: Scripts # idk why windows does this different
 
-    - name: Upgrade pip
-      run: pip install --upgrade pip
+
+    - run: mkdir dist/
+    - name: Download python embedded
+      run: curl -L "https://www.python.org/ftp/python/3.10.7/python-3.10.7-embed-amd64.zip" -o python-embedded.zip
+    - name: Unzip python embedded
+      run: unzip python-embedded.zip -d dist/.python_local
+    - name: Modify python embedded to allow pip to run # See https://stackoverflow.com/questions/42666121/pip-with-embedded-python
+      run: rm dist/.python_local/python310._pth
+    - name: Download get-pip.py
+      run: curl -L "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      working-directory: dist/.python_local
+    - name: Run get-pip.py
+      run: ./python.exe ./get-pip.py
+      working-directory: dist/.python_local
     - name: Install requirements
-      run: pip install --requirement requirements-dev.txt
-    - name: Run PyInstaller
-      run: pyinstaller OATFWGUI.spec
-    - name: Move out of OATFWGUI folder
-      run: mv ./dist/OATFWGUI/* ./dist && rmdir ./dist/OATFWGUI
+      run: dist/.python_local/python.exe -m pip install --requirement requirements.txt
+    - name: Copy sourcecode into dist
+      run: cp -rv OATFWGUI/ dist/
+    - name: Copy bootstrap script into dist
+      run: cp -v scripts/OATFWGUI_Windows.bat dist/
 
     - name: Smoke test
-      run: ./dist/OATFWGUI.exe --no-gui
+      run: ./dist/OATFWGUI_Windows.bat --no-gui
 
     - name: Retrieve version
       id: version
-      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI.exe --version | tail -1)"
+      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Windows.bat --version | tail -1)"
 
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
@@ -90,7 +102,7 @@ jobs:
   publish-release:
     # only publish release on tags
     if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
-    needs: [build-pyinstaller, build-virtualenv]
+    needs: [build-windows, build-virtualenv]
     runs-on: 'ubuntu-20.04'
 
     steps:

@@ -5,6 +5,7 @@ import logging
 import os
 import argparse
 import time
+import subprocess
 from pathlib import Path
 
 from PySide6.QtCore import QStandardPaths, Slot, Qt
@@ -24,15 +25,15 @@ parser.add_argument('-v', '--version', action='version',
 
 
 def setup_environment():
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        log.info('Running in pyinstaller bundle')
-        mei_path = getattr(sys, '_MEIPASS')
-        log.info(f'_MEIPASS is {mei_path}')
-        bin_path = Path(mei_path, 'bin')
-        log.info(f'Adding {bin_path} to system path')
-        os.environ['PATH'] += os.pathsep + str(bin_path)
+    python_interpreter_dir = Path(sys.executable).parent
+    log.debug(f'Python interpreter dir: {python_interpreter_dir}')
+    embedded_python_scripts_dir = Path(python_interpreter_dir, 'Scripts')
+    log.debug(f'Embedded scripts dir: {embedded_python_scripts_dir}')
+    if embedded_python_scripts_dir.is_dir():
+        log.info('Running in embedded python')
+        os.environ['PATH'] += os.pathsep + str(embedded_python_scripts_dir)
     else:
-        log.info('Not running in pyinstaller bundle')
+        log.info('Not running in embedded python')
 
 
 def check_environment():
@@ -43,6 +44,12 @@ def check_environment():
         if exe_path == '':
             log.fatal(f'Could not find {exe_name}! I need it!')
             sys.exit(1)
+    pio_exe = QStandardPaths.findExecutable('platformio')
+    pio_exe_args = [pio_exe, 'system', 'info']
+    log.debug(f'Running {pio_exe_args}')
+    pio_process = subprocess.run(pio_exe_args, capture_output=True)
+    log.debug(f'stdout:\n{pio_process.stdout}')
+    log.debug(f'stderr:\n{pio_process.stderr}')
 
 
 class MainWindow(QMainWindow):
