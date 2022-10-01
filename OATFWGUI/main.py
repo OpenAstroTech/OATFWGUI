@@ -14,7 +14,7 @@ from PySide6.QtGui import QAction, QActionGroup
 from _version import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
-from external_processes import external_processes, add_external_process
+from external_processes import external_processes, add_external_process, get_install_dir
 
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
 parser.add_argument('--no-gui', action='store_true',
@@ -25,11 +25,7 @@ parser.add_argument('-v', '--version', action='version',
 
 
 def setup_environment():
-    main_script_path = Path(__file__)
-    main_script_parent_dir = main_script_path.parent.parent.resolve()
-    log.debug(f'Install directory is {main_script_parent_dir}')
-
-    pio_core_dir = Path(main_script_parent_dir, '.platformio')
+    pio_core_dir = Path(get_install_dir(), '.platformio')
     log.debug(f'Setting PLATFORMIO_CORE_DIR to {pio_core_dir}')
     os.environ['PLATFORMIO_CORE_DIR'] = str(pio_core_dir)
 

@@ -1,6 +1,7 @@
 import sys
 import logging
 from typing import List, Dict, Optional
+from pathlib import Path
 
 from PySide6.QtCore import Slot, QProcess, QStandardPaths
 
@@ -87,3 +88,15 @@ def add_external_process(proc_name: str, prog_name: str, base_args: List[str]):
         sys.exit(1)
 
     external_processes[proc_name] = ExternalProcess(prog_name, base_args)
+
+
+main_script_parent_dir: Optional[Path] = None
+
+
+def get_install_dir(cache=True) -> Path:
+    global main_script_parent_dir
+    if main_script_parent_dir is None or not cache:
+        main_script_path = Path(__file__)
+        main_script_parent_dir = main_script_path.parent.parent.resolve()
+        log.debug(f'Install directory is {main_script_parent_dir}')
+    return main_script_parent_dir

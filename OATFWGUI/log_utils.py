@@ -9,6 +9,7 @@ from typing import Tuple
 
 from PySide6.QtCore import Signal, QObject
 
+from external_processes import get_install_dir
 
 class LogObject(QObject):
     log_signal = Signal(str)
@@ -73,7 +74,7 @@ class CustomFormatter(logging.Formatter):
 def setup_logging(logger, qt_log_obj: LogObject):
     logger.setLevel(logging.DEBUG)
     # file handler
-    log_dir = 'logs'
+    log_dir = Path(get_install_dir(), 'logs')
     os.makedirs(log_dir, exist_ok=True)
     date_str = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
     log_file = str(Path(log_dir, f'oat_fw_gui_{date_str}.log'))

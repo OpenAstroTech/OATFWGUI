@@ -14,14 +14,14 @@ import requests
 
 from log_utils import LogObject
 from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
-from external_processes import external_processes
+from external_processes import external_processes, get_install_dir
 
 log = logging.getLogger('')
 FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
 PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
 
 
-def get_pio_environments(fw_dir: str) -> List[PioEnv]:
+def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
     ini_path = Path(fw_dir, 'platformio.ini')
     with open(ini_path.resolve(), 'r') as fp:
         ini_lines = fp.readlines()
@@ -53,22 +53,22 @@ def get_pio_environments(fw_dir: str) -> List[PioEnv]:
     return pio_environments
 
 
-def download_fw(zip_url: str) -> str:
+def download_fw(zip_url: str) -> Path:
     log.info(f'Downloading OAT FW from: {zip_url}')
     resp = requests.get(zip_url)
-    zipfile_name = 'OATFW.zip'
+    zipfile_name = Path(get_install_dir(), 'OATFW.zip')
     with open(zipfile_name, 'wb') as fd:
         fd.write(resp.content)
         fd.close()
     return zipfile_name
 
 
-def extract_fw(zipfile_name: str) -> str:
+def extract_fw(zipfile_name: Path) -> Path:
     log.info(f'Extracting FW from {zipfile_name}')
     with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
         zip_infolist = zip_ref.infolist()
         if len(zip_infolist) > 0 and zip_infolist[0].is_dir():
-            fw_dir = zip_infolist[0].filename
+            fw_dir = Path(get_install_dir(), zip_infolist[0].filename)
         else:
             log.fatal(f'Could not find FW top level directory in {zip_infolist}!')
             sys.exit(1)
@@ -80,7 +80,7 @@ def extract_fw(zipfile_name: str) -> str:
 class LogicState:
     release_list: Optional[List[FWVersion]] = None
     release_idx: Optional[int] = None
-    fw_dir: Optional[str] = None
+    fw_dir: Optional[Path] = None
     pio_envs: List[PioEnv] = []
     pio_env: Optional[str] = None
     config_file_path: Optional[str] = None
@@ -247,7 +247,7 @@ class BusinessLogic:
         external_processes['platformio'].start(
             ['run',
              '--environment', self.logic_state.pio_env,
-             '--project-dir', self.logic_state.fw_dir,
+             '--project-dir', str(self.logic_state.fw_dir),
              '--verbose'
              ],
             self.pio_build_finished,
