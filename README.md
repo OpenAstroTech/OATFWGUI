@@ -15,6 +15,8 @@ Simply download the [latest release](https://github.com/julianneswinoga/OATFWGUI
   - Override the python interpreter by setting `PYTHON` (i.e. `PYTHON=/usr/bin/python3.10 ./OATFWGUI_Linux.sh`)
   - This creates a local python virtual environment in `.venv_OATFWGUI`. If there's an error during the first run, delete that folder to have the script try again.
 
+> :warning: **OATFWGUI requires an active internet connection!**
+
 It is a local installation, so to remove it simply delete the folder.
 
 ## Screenshots
