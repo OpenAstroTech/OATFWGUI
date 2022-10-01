@@ -13,7 +13,8 @@ from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButt
 import requests
 
 from log_utils import LogObject
-from qt_extensions import Worker, ExternalProcess, QBusyIndicatorGoodBad, BusyIndicatorState
+from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
+from external_processes import external_processes
 
 log = logging.getLogger('')
 FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
@@ -95,7 +96,6 @@ class LogicState:
 class BusinessLogic:
     def __init__(self, main_app: 'MainWidget'):
         self.logic_state = LogicState()
-        self.pio_process = None
 
         self.main_app = main_app
         main_app.wBtn_download_fw.setEnabled(True)
@@ -239,13 +239,12 @@ class BusinessLogic:
 
         log.info(f'Building FW environment={self.logic_state.pio_env} dir={self.logic_state.fw_dir}')
 
-        if self.pio_process is not None:
-            log.error(f'platformio already running! {self.pio_process}')
+        if external_processes['platformio'].state != QProcess.NotRunning:
+            log.error(f"platformio already running! {external_processes['platformio']}")
             self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
             return
 
-        self.pio_process = ExternalProcess(
-            'platformio',
+        external_processes['platformio'].start(
             ['run',
              '--environment', self.logic_state.pio_env,
              '--project-dir', self.logic_state.fw_dir,
@@ -253,12 +252,11 @@ class BusinessLogic:
              ],
             self.pio_build_finished,
         )
-        self.pio_process.start()
 
     @Slot()
     def pio_build_finished(self):
         log.info(f'platformio build finished')
-        exit_state = self.pio_process.qproc.exitCode()
+        exit_state = external_processes['platformio'].qproc.exitCode()
         if exit_state == QProcess.NormalExit:
             log.info('Normal exit')
             self.main_app.wSpn_build.setState(BusyIndicatorState.GOOD)
@@ -266,30 +264,27 @@ class BusinessLogic:
         else:
             log.error('Did not exit normally')
             self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
-        self.pio_process = None
 
     def refresh_ports(self):
-        if self.pio_process is not None:
-            log.error(f'platformio already running! {self.pio_process}')
+        if external_processes['platformio'].state != QProcess.NotRunning:
+            log.error(f"platformio already running! {external_processes['platformio']}")
             return
 
-        self.pio_process = ExternalProcess(
-            'platformio',
+        external_processes['platformio'].start(
             ['device', 'list', '--serial', '--json-output'],
             self.pio_refresh_ports_finished,
         )
-        self.pio_process.start()
 
     @Slot()
     def pio_refresh_ports_finished(self):
         log.info(f'platformio refresh ports finished')
-        exit_state = self.pio_process.qproc.exitCode()
+        exit_state = external_processes['platformio'].qproc.exitCode()
         if exit_state == QProcess.NormalExit:
             log.info('Normal exit')
         else:
             log.error('Did not exit normally')
-        all_port_data = json.loads(self.pio_process.stdout_text)
-        self.pio_process = None
+        stdout_data = external_processes['platformio'].stdout_text
+        all_port_data = json.loads(stdout_data)
         self.logic_state.serial_ports = [port_data['port'] for port_data in all_port_data]
 
         self.main_app.wCombo_serial_port.clear()
@@ -312,12 +307,11 @@ class BusinessLogic:
 
     def upload_fw(self):
         self.main_app.wSpn_upload.setState(BusyIndicatorState.BUSY)
-        if self.pio_process is not None:
-            log.error(f'platformio already running! {self.pio_process}')
+        if external_processes['platformio'].state != QProcess.NotRunning:
+            log.error(f"platformio already running! {external_processes['platformio']}")
             return
 
-        self.pio_process = ExternalProcess(
-            'platformio',
+        external_processes['platformio'].start(
             ['run',
              '--environment', self.logic_state.pio_env,
              '--project-dir', self.logic_state.fw_dir,
@@ -327,19 +321,17 @@ class BusinessLogic:
              ],
             self.pio_upload_finished,
         )
-        self.pio_process.start()
 
     @Slot()
     def pio_upload_finished(self):
         log.info(f'platformio upload finished')
-        exit_state = self.pio_process.qproc.exitCode()
+        exit_state = external_processes['platformio'].qproc.exitCode()
         if exit_state == QProcess.NormalExit:
             log.info('Normal exit')
             self.main_app.wSpn_upload.setState(BusyIndicatorState.GOOD)
         else:
             log.error('Did not exit normally')
             self.main_app.wSpn_upload.setState(BusyIndicatorState.BAD)
-        self.pio_process = None
 
 
 class MainWidget(QWidget):

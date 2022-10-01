@@ -5,16 +5,16 @@ import logging
 import os
 import argparse
 import time
-import subprocess
 from pathlib import Path
 
-from PySide6.QtCore import QStandardPaths, Slot, Qt
+from PySide6.QtCore import Slot, Qt
 from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel
 from PySide6.QtGui import QAction, QActionGroup
 
 from _version import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
+from external_processes import external_processes, add_external_process
 
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
 parser.add_argument('--no-gui', action='store_true',
@@ -25,31 +25,21 @@ parser.add_argument('-v', '--version', action='version',
 
 
 def setup_environment():
-    python_interpreter_dir = Path(sys.executable).parent
+    python_interpreter_path = Path(sys.executable)
+    log.debug(f'Python interpreter: {python_interpreter_path}')
+    python_interpreter_dir = python_interpreter_path.parent
     log.debug(f'Python interpreter dir: {python_interpreter_dir}')
     embedded_python_scripts_dir = Path(python_interpreter_dir, 'Scripts')
     log.debug(f'Embedded scripts dir: {embedded_python_scripts_dir}')
+
     if embedded_python_scripts_dir.is_dir():
         log.info('Running in embedded python')
         os.environ['PATH'] += os.pathsep + str(embedded_python_scripts_dir)
+        add_external_process('platformio', str(python_interpreter_path), ['-m', 'platformio'])
     else:
         log.info('Not running in embedded python')
-
-
-def check_environment():
-    for exe_name in ['platformio']:
-        log.debug(f'Checking path for {exe_name}')
-        exe_path = QStandardPaths.findExecutable(exe_name)
-        log.debug(f'Path is {exe_path}')
-        if exe_path == '':
-            log.fatal(f'Could not find {exe_name}! I need it!')
-            sys.exit(1)
-    pio_exe = QStandardPaths.findExecutable('platformio')
-    pio_exe_args = [pio_exe, 'system', 'info']
-    log.debug(f'Running {pio_exe_args}')
-    pio_process = subprocess.run(pio_exe_args, capture_output=True)
-    log.debug(f'stdout:\n{pio_process.stdout}')
-    log.debug(f'stderr:\n{pio_process.stderr}')
+        add_external_process('platformio', 'platformio', [])
+    # TODO: Run platformio system info
 
 
 class MainWindow(QMainWindow):
@@ -124,7 +114,6 @@ class MainWindow(QMainWindow):
 
 def main():
     setup_environment()
-    check_environment()
     log.debug('Creating app')
     app = QApplication(sys.argv)
 
