@@ -42,6 +42,16 @@ jobs:
       run: cp -rv OATFWGUI/ dist/
     - name: Copy bootstrap script into dist
       run: cp -v scripts/OATFWGUI_Windows.bat dist/
+    - name: Prune unused windows files
+      run: |
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/lupdate.exe || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Designer* || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Quick* || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Qml* || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Sql* || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Xml* || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/linguist.exe || true
+        rm -v ./dist/.python_local/Lib/site-packages/PySide6/designer.exe || true
 
     - name: Smoke test
       run: ./dist/OATFWGUI_Windows.bat --no-gui
@@ -50,6 +60,8 @@ jobs:
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Windows.bat --version | tail -1)"
 
+    - name: Remove local .platformio
+      run: rm -r ./dist/.platformio
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
       run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
@@ -90,6 +102,8 @@ jobs:
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
 
+    - name: Remove local .platformio
+      run: rm -r ./dist/.platformio
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
       run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
