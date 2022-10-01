@@ -39,7 +39,8 @@ def setup_environment():
     else:
         log.info('Not running in embedded python')
         add_external_process('platformio', 'platformio', [])
-    # TODO: Run platformio system info
+
+    external_processes['platformio'].start(['system', 'info'], None)
 
 
 class MainWindow(QMainWindow):

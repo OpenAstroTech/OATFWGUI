@@ -18,7 +18,7 @@ class ExternalProcess:
 
         self.qproc: Optional[QProcess] = None
 
-    def start(self, extra_args: List[str], finish_signal):
+    def start(self, extra_args: List[str], finish_signal: Optional):
         self.qproc = QProcess()
         self.qproc.setProgram(self.proc_name)
         self.qproc.setArguments(self.base_args)
@@ -34,10 +34,11 @@ class ExternalProcess:
         log.info(f'Starting {self.proc_name} with args: {all_args}')
         self.qproc.start()
         # Not sure why, but the process doesn't start without these
-        proc_started = self.qproc.waitForStarted(5000)
+        proc_started = self.qproc.waitForStarted(10 * 1000)
         if not proc_started:
             log.warning(f'{self.proc_name}:did not start')
-        proc_finished = self.qproc.waitForFinished(60000)
+        # Basically infinite timeout to wait for the process to finish
+        proc_finished = self.qproc.waitForFinished(999 * 60 * 1000)
         if not proc_finished:
             log.warning(f'{self.proc_name}:did not finish')
         self.cleanup()
