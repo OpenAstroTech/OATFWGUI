@@ -65,8 +65,10 @@ jobs:
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Windows.bat --version | tail -1)"
 
-    - name: Remove local .platformio
-      run: rm -r ./dist/.platformio
+    - name: Remove smoke test artifacts
+      run: |
+        rm -r ./dist/.platformio
+        rm -r ./dist/logs
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
       run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
