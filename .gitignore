@@ -1,6 +1,7 @@
 *.zip
 *venv*/
 .idea/
+.platformio/
 *.log
 build_*/
 dist*/
