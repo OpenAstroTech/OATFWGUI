@@ -35,15 +35,16 @@ class CustomFormatter(logging.Formatter):
         self.colour_type = colour_type
 
     def _colour_terminal(self, levelno: int) -> Tuple[str, str]:
-        grey = "\x1b[38;20m"
+        magenta = "\x1b[35;20m"
+        bright_grey = "\x1b[90;20m"
         yellow = "\x1b[33;20m"
         red = "\x1b[31;20m"
         bold_red = "\x1b[31;1m"
         reset = "\x1b[0m"
 
         pre, post = {
-            logging.DEBUG: (grey, reset),
-            logging.INFO: (grey, reset),
+            logging.DEBUG: (magenta, reset),
+            logging.INFO: (bright_grey, reset),
             logging.WARNING: (yellow, reset),
             logging.ERROR: (red, reset),
             logging.CRITICAL: (bold_red, reset),
