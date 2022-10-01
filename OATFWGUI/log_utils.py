@@ -3,6 +3,7 @@ import sys
 import os
 import enum
 import html
+import platform
 from pathlib import Path
 from datetime import datetime
 from typing import Tuple
@@ -60,7 +61,8 @@ class CustomFormatter(logging.Formatter):
         return pre, post
 
     def format(self, record):
-        if self.colour_type == LogColourTypes.terminal:
+        if self.colour_type == LogColourTypes.terminal and 'windows' not in platform.system().lower():
+            # only use terminal colors when not in windows, they don't work by default
             pre, post = self._colour_terminal(record.levelno)
             log_str = pre + super().format(record) + post
         elif self.colour_type == LogColourTypes.html:
