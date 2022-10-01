@@ -25,6 +25,14 @@ parser.add_argument('-v', '--version', action='version',
 
 
 def setup_environment():
+    main_script_path = Path(__file__)
+    main_script_parent_dir = main_script_path.parent.parent.resolve()
+    log.debug(f'Install directory is {main_script_parent_dir}')
+
+    pio_core_dir = Path(main_script_parent_dir, '.platformio')
+    log.debug(f'Setting PLATFORMIO_CORE_DIR to {pio_core_dir}')
+    os.environ['PLATFORMIO_CORE_DIR'] = str(pio_core_dir)
+
     python_interpreter_path = Path(sys.executable)
     log.debug(f'Python interpreter: {python_interpreter_path}')
     python_interpreter_dir = python_interpreter_path.parent
