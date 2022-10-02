@@ -29,7 +29,7 @@ jobs:
     - name: Unzip python embedded
       run: unzip python-embedded.zip -d dist/.python_local
     - name: Modify python embedded to allow pip to run # See https://stackoverflow.com/questions/42666121/pip-with-embedded-python
-      run: rm dist/.python_local/python310._pth
+      run: rm -v dist/.python_local/python310._pth
     - name: Download get-pip.py
       run: curl -L "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       working-directory: dist/.python_local
@@ -64,10 +64,12 @@ jobs:
     - name: Retrieve version
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Windows.bat --version | tail -1)"
+    - name: Output version
+      run: echo "Version is ${{ steps.version.outputs.VERSION }}"
 
     - name: Remove smoke test artifacts
       run: |
-        rm -r ./dist/logs
+        rm -rv ./dist/logs
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
       run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
@@ -107,7 +109,13 @@ jobs:
     - name: Retrieve version
       id: version
       run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
+    - name: Output version
+      run: echo "Version is ${{ steps.version.outputs.VERSION }}"
 
+    - name: Remove smoke test artifacts
+      run: |
+        rm -rv ./dist/logs
+        rm -rv ./dist/.venv_*
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
       run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
@@ -144,7 +152,7 @@ jobs:
               echo "Restoring execution on $f_path"
               chmod +x "$f_path"
             done < "$PERM_FILE"
-            rm "$PERM_FILE"
+            rm -v "$PERM_FILE"
             popd
           done
       - name: Zip artifacts

@@ -104,6 +104,10 @@ function set_supported_python_path {
 }
 
 # Main script logic
+SCRIPT_DIR="$( dirname -- "$( readlink -f -- "$0"; )"; )"
+echo "Script dir: $SCRIPT_DIR"
+pushd "$SCRIPT_DIR"  # relative paths can now be used
+
 if ! check_ldd_version; then
   echo "Unsupported LIBC version, sorry :/"
   exit 1
@@ -131,3 +135,4 @@ fi
 source $VENV_PATH/bin/activate
 # now can can just run python -- no need to use system $PYTHON
 python3 OATFWGUI/main.py "$@"
+popd >> /dev/null
