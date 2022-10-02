@@ -95,3 +95,5 @@ def setup_logging(logger, qt_log_obj: LogObject):
     gh.setLevel(logging.INFO)
     gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
     logger.addHandler(gh)
+
+    logger.debug(f'Logging initialized (logfile={log_file})')

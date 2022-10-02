@@ -145,5 +145,4 @@ if __name__ == '__main__':
     log = logging.getLogger('')
     l_o = LogObject()
     setup_logging(log, l_o)
-    log.debug('Logging initialized')
     main()
