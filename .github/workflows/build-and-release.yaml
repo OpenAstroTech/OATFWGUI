@@ -67,7 +67,6 @@ jobs:
 
     - name: Remove smoke test artifacts
       run: |
-        rm -r ./dist/.platformio
         rm -r ./dist/logs
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable

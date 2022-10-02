@@ -5,6 +5,7 @@ import logging
 import os
 import argparse
 import time
+import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Slot, Qt
@@ -25,7 +26,9 @@ parser.add_argument('-v', '--version', action='version',
 
 
 def setup_environment():
-    pio_core_dir = Path(get_install_dir(), '.platformio')
+    # Putting the platformio core directory in a temporary folder is only needed because
+    # Windows doesn't support long path names... :/
+    pio_core_dir = Path(tempfile.gettempdir(), f'.pio_OATFWGUI_{__version__}')
     log.debug(f'Setting PLATFORMIO_CORE_DIR to {pio_core_dir}')
     os.environ['PLATFORMIO_CORE_DIR'] = str(pio_core_dir)
 
