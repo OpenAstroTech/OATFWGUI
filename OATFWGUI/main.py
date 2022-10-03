@@ -72,7 +72,7 @@ class MainWindow(QMainWindow):
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.bug_hyperlink = QLabel('<a href="https://github.com/julianneswinoga/OATFWGUI/issues">Report a bug</a>')
+        self.bug_hyperlink = QLabel('<a href="https://github.com/OpenAstroTech/OATFWGUI/issues">Report a bug</a>')
         self.bug_hyperlink.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.bug_hyperlink.setOpenExternalLinks(True)
         self.status_bar.addPermanentWidget(self.bug_hyperlink)
