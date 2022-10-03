@@ -3,8 +3,8 @@ OpenAstroTech FirmWare Graphical User Interface -- Graphical way to build and lo
 
 ## Supported platforms
 - Windows 64 bit
-- Linux
-  - Requires Python 3.7+, LIBC >= 2.28 (check with `ldd --version`)
+- Linux 64 bit
+  - Requires Python 3.7+, libc >= 2.28 (check with `ldd --version`)
 
 MacOS might work, don't have a mac to test on. Drop a line if you're willing to test it!
 
@@ -18,6 +18,8 @@ Simply download the [latest release](https://github.com/OpenAstroTech/OATFWGUI/r
 > :warning: **OATFWGUI requires an active internet connection!**
 
 It is a local installation, so to remove it simply delete the folder.
+(it also creates a platformio core directory in your system's temporary folder, but those should be deleted after a system restart.
+The exact folder depends on your system, but is noted at startup. Something like `DEBUG:Setting PLATFORMIO_CORE_DIR to C:\Users\RUNNER~1\AppData\Local\Temp\.pio_OATFWGUI_dev-0.0.9-c3592b`)
 
 ## Screenshots
 Windows:
