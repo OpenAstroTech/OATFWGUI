@@ -314,7 +314,7 @@ class BusinessLogic:
         external_processes['platformio'].start(
             ['run',
              '--environment', self.logic_state.pio_env,
-             '--project-dir', self.logic_state.fw_dir,
+             '--project-dir', str(self.logic_state.fw_dir),
              '--verbose',
              '--target', 'upload',
              '--upload-port', self.logic_state.upload_port,
