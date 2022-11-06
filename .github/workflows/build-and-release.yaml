@@ -63,9 +63,9 @@ jobs:
 
     - name: Retrieve version
       id: version
-      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Windows.bat --version | tail -1)"
+      run: echo "OATFWGUI_VERSION=$(./dist/OATFWGUI_Windows.bat --version | tail -1)" >> $GITHUB_ENV
     - name: Output version
-      run: echo "Version is ${{ steps.version.outputs.VERSION }}"
+      run: echo "Version is ${{ env.OATFWGUI_VERSION }}"
 
     - name: Remove smoke test artifacts
       run: |
@@ -76,7 +76,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: OATFWGUI_${{ steps.version.outputs.VERSION }}_${{ runner.os }}_${{ runner.arch }}
+        name: OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}_${{ runner.arch }}
         path: dist/*
 
   build-virtualenv:
@@ -108,9 +108,9 @@ jobs:
 
     - name: Retrieve version
       id: version
-      run: echo "::set-output name=VERSION::$(./dist/OATFWGUI_Linux.sh --version | tail -1)"
+      run: echo "OATFWGUI_VERSION=$(./dist/OATFWGUI_Linux.sh --version | tail -1)" >> $GITHUB_ENV
     - name: Output version
-      run: echo "Version is ${{ steps.version.outputs.VERSION }}"
+      run: echo "Version is ${{ env.OATFWGUI_VERSION }}"
 
     - name: Remove smoke test artifacts
       run: |
@@ -122,7 +122,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: OATFWGUI_${{ steps.version.outputs.VERSION }}_${{ runner.os }}_${{ runner.arch }}
+        name: OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}_${{ runner.arch }}
         path: dist/*
 
   publish-release:
