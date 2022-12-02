@@ -16,6 +16,7 @@ from _version import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
 from external_processes import external_processes, add_external_process, get_install_dir
+from anon_usage_data import get_uuid
 
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
 parser.add_argument('--no-gui', action='store_true',
@@ -48,6 +49,7 @@ def setup_environment():
         add_external_process('platformio', 'platformio', [])
 
     external_processes['platformio'].start(['system', 'info'], None)
+    get_uuid()  # TODO: Remove UUID test
 
 
 class MainWindow(QMainWindow):
