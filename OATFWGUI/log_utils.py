@@ -3,7 +3,6 @@ import sys
 import os
 import enum
 import html
-import platform
 from pathlib import Path
 from datetime import datetime
 from typing import Tuple
@@ -11,6 +10,8 @@ from typing import Tuple
 from PySide6.QtCore import Signal, QObject
 
 from external_processes import get_install_dir
+from platform_check import get_platform, PlatformEnum
+
 
 class LogObject(QObject):
     log_signal = Signal(str)
@@ -62,7 +63,7 @@ class CustomFormatter(logging.Formatter):
         return pre, post
 
     def format(self, record):
-        if self.colour_type == LogColourTypes.terminal and 'windows' not in platform.system().lower():
+        if self.colour_type == LogColourTypes.terminal and get_platform() != PlatformEnum.WINDOWS:
             # only use terminal colors when not in windows, they don't work by default
             pre, post = self._colour_terminal(record.levelno)
             log_str = pre + super().format(record) + post
