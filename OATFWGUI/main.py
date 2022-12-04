@@ -48,6 +48,8 @@ def setup_environment():
         add_external_process('platformio', 'platformio', [])
 
     external_processes['platformio'].start(['system', 'info'], None)
+    external_processes['platformio'].start(['settings', 'set', 'check_platformio_interval', '9999'], None)
+    external_processes['platformio'].start(['settings', 'set', 'check_prune_system_threshold', '0'], None)
 
 
 class MainWindow(QMainWindow):
