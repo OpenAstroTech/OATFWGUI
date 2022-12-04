@@ -340,13 +340,14 @@ class BusinessLogic:
 
         if self.main_app.wChk_upload_stats.isChecked():
             log.info('Uploading anonymous usage statistics')
-            upload_anon_stats()
+            anon_stats = create_anon_stats(self.logic_state)
+            upload_anon_stats(anon_stats)
         else:
             log.info('NOT uploading anonymous usage statistics')
 
     @Slot()
     def modal_show_stats(self):
-        dlg = AnonStatsDialog(self.main_app)
+        dlg = AnonStatsDialog(self.logic_state, self.main_app)
         dlg.exec_()
 
 
