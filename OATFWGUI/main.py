@@ -49,7 +49,6 @@ def setup_environment():
         add_external_process('platformio', 'platformio', [])
 
     external_processes['platformio'].start(['system', 'info'], None)
-    get_uuid()  # TODO: Remove UUID test
 
 
 class MainWindow(QMainWindow):

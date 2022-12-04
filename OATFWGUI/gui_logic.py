@@ -98,6 +98,10 @@ class BusinessLogic:
         # Manually spawn a worker to refresh serial ports
         self.spawn_worker_thread(self.refresh_ports)()
 
+        log.debug('Testing anonymous statistics creation')
+        anon_stats = create_anon_stats(self.logic_state)
+        log.debug(f'Statistics: {json.dumps(anon_stats)}')
+
     def spawn_worker_thread(self, fn):
         @Slot()
         def worker_thread_slot():
