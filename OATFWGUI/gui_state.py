@@ -1,13 +1,19 @@
 import logging
-from typing import List, Optional
-from collections import namedtuple
+from typing import NamedTuple, List, Optional
 from pathlib import Path
 
 
 log = logging.getLogger('')
 
-FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
-PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
+
+class FWVersion(NamedTuple):
+    nice_name: str
+    url: str
+
+
+class PioEnv(NamedTuple):
+    nice_name: str
+    raw_name: str
 
 
 class LogicState:
