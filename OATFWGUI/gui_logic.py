@@ -243,8 +243,8 @@ class BusinessLogic:
     @Slot()
     def pio_build_finished(self):
         log.info(f'platformio build finished')
-        exit_state = external_processes['platformio'].qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
+        exit_code = external_processes['platformio'].qproc.exitCode()
+        if exit_code == 0:
             log.info('Normal exit')
             self.main_app.wSpn_build.setState(BusyIndicatorState.GOOD)
             self.logic_state.build_success = True
@@ -265,8 +265,8 @@ class BusinessLogic:
     @Slot()
     def pio_refresh_ports_finished(self):
         log.info(f'platformio refresh ports finished')
-        exit_state = external_processes['platformio'].qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
+        exit_code = external_processes['platformio'].qproc.exitCode()
+        if exit_code == 0:
             log.info('Normal exit')
         else:
             log.error('Did not exit normally')
@@ -312,8 +312,8 @@ class BusinessLogic:
     @Slot()
     def pio_upload_finished(self):
         log.info(f'platformio upload finished')
-        exit_state = external_processes['platformio'].qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
+        exit_code = external_processes['platformio'].qproc.exitCode()
+        if exit_code == 0:
             log.info('Normal exit')
             self.main_app.wSpn_upload.setState(BusyIndicatorState.GOOD)
         else:
