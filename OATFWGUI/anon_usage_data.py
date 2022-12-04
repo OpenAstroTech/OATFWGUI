@@ -4,7 +4,8 @@ import subprocess
 import json
 from pathlib import Path
 
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout, QLabel
+from PySide6.QtGui import QFont
 import pygments
 from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
@@ -28,23 +29,35 @@ class AnonStatsDialog(QDialog):
 
         usage_stats_html = dict_to_html(create_anon_stats(logic_state))
 
-        log.info(repr(usage_stats_html))
-
-        message = QPlainTextEdit()
-        message.setReadOnly(True)
-        message.appendHtml(f'''
-<p>
+        wLbl_1 = QLabel('''
 These statistics are invaluable for us developers on figuring out what our users are actually
 building, so we can figure out where to put our (limited!) time working towards improving.
 After a successful OAT firmware upload the following data will be sent to our statistics server:
-</p>
-{usage_stats_html}
-<p>(the data might not fully be populated yet, you need to progress through the GUI steps first)</p>
-<p>Additionally your IP address may be logged for rough geo-location purposes</p>
-''')
+'''.replace('\n', ' '))
+        wLbl_1.setWordWrap(True)
+
+        wTxt_html = QPlainTextEdit()
+        wTxt_html.setReadOnly(True)
+        wTxt_html.appendHtml(f'{usage_stats_html}')
+
+        wLbl_2 = QLabel('''
+(the data might not fully be populated yet, you need to progress through the GUI steps first)
+'''.replace('\n', ' '))
+        italic_font = QFont()
+        italic_font.setItalic(True)
+        wLbl_2.setFont(italic_font)
+        wLbl_2.setWordWrap(True)
+
+        wLbl_3 = QLabel('''
+Additionally your IP address may be logged for rough geo-location purposes.
+'''.replace('\n', ' '))
+        wLbl_3.setWordWrap(True)
 
         self.layout = QVBoxLayout()
-        self.layout.addWidget(message)
+        self.layout.addWidget(wLbl_1)
+        self.layout.addWidget(wTxt_html)
+        self.layout.addWidget(wLbl_2)
+        self.layout.addWidget(wLbl_3)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
 
