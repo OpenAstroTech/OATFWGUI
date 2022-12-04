@@ -62,10 +62,18 @@ def create_anon_stats(logic_state: LogicState) -> dict:
         release_name = logic_state.release_list[logic_state.release_idx].nice_name
     else:
         release_name = None
+
+    if logic_state.config_file_path is not None:
+        with open(Path(logic_state.config_file_path).resolve(), 'r') as fp:
+            config_file = fp.read()
+    else:
+        config_file = None
+
     stats = {
         'uuid': get_uuid(),
         'pio_env': logic_state.pio_env,
         'release_version': release_name,
+        'config_file': config_file,
     }
     return stats
 
