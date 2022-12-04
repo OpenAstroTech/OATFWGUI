@@ -4,7 +4,6 @@ import sys
 import zipfile
 import json
 from typing import List, Optional
-from collections import namedtuple
 from pathlib import Path
 
 from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
@@ -16,11 +15,10 @@ import requests
 from log_utils import LogObject
 from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
 from external_processes import external_processes, get_install_dir
+from gui_state import LogicState, PioEnv, FWVersion
 from anon_usage_data import AnonStatsDialog, create_anon_stats, upload_anon_stats
 
 log = logging.getLogger('')
-FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
-PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
 
 
 def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
@@ -77,22 +75,6 @@ def extract_fw(zipfile_name: Path) -> Path:
         zip_ref.extractall()
     log.info(f'Extracted FW to {fw_dir}')
     return fw_dir
-
-
-class LogicState:
-    release_list: Optional[List[FWVersion]] = None
-    release_idx: Optional[int] = None
-    fw_dir: Optional[Path] = None
-    pio_envs: List[PioEnv] = []
-    pio_env: Optional[str] = None
-    config_file_path: Optional[str] = None
-    build_success: bool = False
-    serial_ports: List[str] = []
-    upload_port: Optional[str] = None
-
-    def __setattr__(self, key, val):
-        log.debug(f'LogicState updated: {key} {getattr(self, key)} -> {val}')
-        super().__setattr__(key, val)
 
 
 class BusinessLogic:
@@ -187,8 +169,8 @@ class BusinessLogic:
 
     def download_and_extract_fw(self) -> str:
         self.main_app.wSpn_download.setState(BusyIndicatorState.BUSY)
-        fw_idx = self.main_app.wCombo_fw_version.currentIndex()
-        zip_url = self.logic_state.release_list[fw_idx].url
+        self.logic_state.release_idx = self.main_app.wCombo_fw_version.currentIndex()
+        zip_url = self.logic_state.release_list[self.logic_state.release_idx].url
         zipfile_name = download_fw(zip_url)
 
         self.logic_state.fw_dir = extract_fw(zipfile_name)
