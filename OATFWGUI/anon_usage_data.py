@@ -1,11 +1,75 @@
 import logging
 import hashlib
 import subprocess
+import json
 from pathlib import Path
+
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout
+import pygments
+from pygments.lexers import JsonLexer
+from pygments.formatters import HtmlFormatter
 
 from platform_check import get_platform, PlatformEnum
 
 log = logging.getLogger('')
+
+
+class AnonStatsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle('What statistics will be uploaded?')
+
+        QBtn = QDialogButtonBox.Ok
+
+        self.buttonBox = QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+
+        usage_stats_html = dict_to_html(create_anon_stats())
+
+        log.info(repr(usage_stats_html))
+
+        message = QPlainTextEdit()
+        message.setReadOnly(True)
+        message.appendHtml(f'''
+<p>
+These statistics are invaluable for us developers on figuring out what our users are actually
+building, so we can figure out where to put our (limited!) time working towards improving.
+After a successful OAT firmware upload the following data will be sent to our statistics server:
+</p>
+{usage_stats_html}
+<p>
+(the data might not fully be populated yet, you need to progress through the GUI steps first)
+</p>
+''')
+
+        self.layout = QVBoxLayout()
+        self.layout.addWidget(message)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+
+
+def dict_to_html(in_dict: dict) -> str:
+    json_str = json.dumps(in_dict, indent=4, sort_keys=True)
+    json_lexer = JsonLexer()
+    html_formatter = HtmlFormatter(noclasses=True, nobackground=True)
+    data_html = pygments.highlight(json_str, json_lexer, html_formatter)
+    return data_html
+
+
+def create_anon_stats() -> dict:
+    stats = {
+        'uuid': get_uuid(),
+        'test3': 5555555555,
+        'test6': 666666666666,
+    }
+    return stats
+
+
+def upload_anon_stats(anon_stats: dict) -> bool:
+    log.info('Uploading statistics')
+
+    return False
 
 
 def get_uuid() -> str:
