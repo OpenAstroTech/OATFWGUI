@@ -54,7 +54,6 @@ def setup_environment():
     external_processes['platformio'].start(['system', 'info'], None)
     external_processes['platformio'].start(['settings', 'set', 'check_platformio_interval', '9999'], None)
     external_processes['platformio'].start(['settings', 'set', 'check_prune_system_threshold', '0'], None)
-    get_uuid()  # TODO: Remove UUID test
 
 
 def raw_version_to_semver() -> Optional[semver.VersionInfo]:
