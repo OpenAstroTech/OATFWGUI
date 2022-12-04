@@ -10,12 +10,13 @@ from pygments.lexers import JsonLexer
 from pygments.formatters import HtmlFormatter
 
 from platform_check import get_platform, PlatformEnum
+from gui_state import LogicState
 
 log = logging.getLogger('')
 
 
 class AnonStatsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, logic_state: LogicState, parent=None):
         super().__init__(parent)
 
         self.setWindowTitle('What statistics will be uploaded?')
@@ -25,7 +26,7 @@ class AnonStatsDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
 
-        usage_stats_html = dict_to_html(create_anon_stats())
+        usage_stats_html = dict_to_html(create_anon_stats(logic_state))
 
         log.info(repr(usage_stats_html))
 
@@ -38,9 +39,8 @@ building, so we can figure out where to put our (limited!) time working towards 
 After a successful OAT firmware upload the following data will be sent to our statistics server:
 </p>
 {usage_stats_html}
-<p>
-(the data might not fully be populated yet, you need to progress through the GUI steps first)
-</p>
+<p>(the data might not fully be populated yet, you need to progress through the GUI steps first)</p>
+<p>Additionally your IP address may be logged for rough geo-location purposes</p>
 ''')
 
         self.layout = QVBoxLayout()
@@ -57,11 +57,15 @@ def dict_to_html(in_dict: dict) -> str:
     return data_html
 
 
-def create_anon_stats() -> dict:
+def create_anon_stats(logic_state: LogicState) -> dict:
+    if logic_state.release_idx is not None:
+        release_name = logic_state.release_list[logic_state.release_idx].nice_name
+    else:
+        release_name = None
     stats = {
         'uuid': get_uuid(),
-        'test3': 5555555555,
-        'test6': 666666666666,
+        'pio_env': logic_state.pio_env,
+        'release_version': release_name,
     }
     return stats
 
