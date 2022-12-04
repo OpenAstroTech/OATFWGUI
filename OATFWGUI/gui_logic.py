@@ -43,10 +43,8 @@ def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
     }
     pio_environments = []
     for raw_env in raw_pio_envs:
-        if raw_env in nice_name_lookup:
-            pio_env = PioEnv(nice_name_lookup[raw_env], raw_env)
-        else:
-            pio_env = PioEnv(raw_env, raw_env)
+        # Try to match a raw env to nice name, fallback to raw env
+        pio_env = PioEnv(nice_name_lookup.get(raw_env, raw_env), raw_env)
         pio_environments.append(pio_env)
     return pio_environments
 
