@@ -2,7 +2,9 @@ import logging
 import hashlib
 import subprocess
 import json
+import requests
 from pathlib import Path
+from typing import Tuple
 
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout, QLabel
 from PySide6.QtGui import QFont
@@ -48,16 +50,10 @@ After a successful OAT firmware upload the following data will be sent to our st
         wLbl_2.setFont(italic_font)
         wLbl_2.setWordWrap(True)
 
-        wLbl_3 = QLabel('''
-Additionally your IP address may be logged for rough geo-location purposes.
-'''.replace('\n', ' '))
-        wLbl_3.setWordWrap(True)
-
         self.layout = QVBoxLayout()
         self.layout.addWidget(wLbl_1)
         self.layout.addWidget(wTxt_html)
         self.layout.addWidget(wLbl_2)
-        self.layout.addWidget(wLbl_3)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
 
@@ -82,11 +78,25 @@ def create_anon_stats(logic_state: LogicState) -> dict:
     else:
         config_file = None
 
+    # Catch-all for these so we never crash when getting anon-stats
+    try:
+        uuid = get_uuid()
+    except Exception as e:
+        log.error(f'get_uuid exception: {e}')
+        uuid = 'unknown'
+    try:
+        approx_lat, approx_lon = get_approx_location()
+    except Exception as e:
+        log.error(f'get_approx_location exception: {e}')
+        approx_lat, approx_lon = None, None
+
     stats = {
-        'uuid': get_uuid(),
+        'uuid': uuid,
         'pio_env': logic_state.pio_env,
         'release_version': release_name,
         'config_file': config_file,
+        'approx_lat': approx_lat,
+        'approx_lon': approx_lon,
     }
     return stats
 
@@ -134,3 +144,13 @@ def get_uuid_linux() -> str:
     with open(id_file, 'r') as f:
         machine_id_contents = f.read().strip()
     return machine_id_contents
+
+
+def get_approx_location() -> Tuple[float, float]:
+    geo_ip_url = 'https://ipinfo.io/loc'
+    response = requests.get(geo_ip_url, timeout=2.0)
+    resp_str = response.content.decode().strip()
+    lat_str, lon_str = resp_str.split(',')
+    lat_approx = round(float(lat_str), 1)
+    lon_approx = round(float(lon_str), 1)
+    return lat_approx, lon_approx
