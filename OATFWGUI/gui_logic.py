@@ -264,8 +264,15 @@ class BusinessLogic:
         else:
             log.error('Did not exit normally')
         stdout_data = external_processes['platformio'].stdout_text
-        all_port_data = json.loads(stdout_data)
-        self.logic_state.serial_ports = [port_data['port'] for port_data in all_port_data]
+        if stdout_data:
+            try:
+                all_port_data = json.loads(stdout_data)
+            except json.decoder.JSONDecodeError as e:
+                log.error(f'JSONDecodeError: {e} with\n{repr(stdout_data)}')
+                all_port_data = []
+            self.logic_state.serial_ports = [port_data['port'] for port_data in all_port_data]
+        else:
+            self.logic_state.serial_ports = []
 
         self.main_app.wCombo_serial_port.clear()
         for serial_port in self.logic_state.serial_ports:
