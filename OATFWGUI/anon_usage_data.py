@@ -111,8 +111,8 @@ def get_uuid() -> str:
     machine_id_fn = {
         PlatformEnum.WINDOWS: get_uuid_windows,
         PlatformEnum.LINUX: get_uuid_linux,
-        PlatformEnum.UNKNOWN: lambda: 'unknown',
-    }.get(get_platform())
+        PlatformEnum.UNKNOWN: lambda: 'unknown platform',
+    }.get(get_platform(), lambda: 'unknown, unhandled platform')
     machine_id_str = machine_id_fn()
 
     if 'unknown' in machine_id_str.lower():
