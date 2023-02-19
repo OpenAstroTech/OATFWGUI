@@ -6,7 +6,7 @@ import requests
 from pathlib import Path
 from typing import Tuple
 
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout, QLabel
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout, QLabel, QPushButton, QSizePolicy
 from PySide6.QtGui import QFont
 import pygments
 from pygments.lexers import JsonLexer
@@ -37,10 +37,19 @@ building, so we can figure out where to put our (limited!) time working towards 
 After a successful OAT firmware upload the following data will be sent to our statistics server:
 '''.replace('\n', ' '))
         wLbl_1.setWordWrap(True)
+        wLbl_1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
-        wTxt_html = QPlainTextEdit()
-        wTxt_html.setReadOnly(True)
-        wTxt_html.appendHtml(f'{usage_stats_html}')
+        self.wBtn_show_hide = QPushButton('▶Click to expand:')
+        self.wBtn_show_hide.setStyleSheet('QPushButton { color: #0074cc; background-color: transparent; border: 0px; }')
+        self.wBtn_show_hide.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.wBtn_show_hide.clicked.connect(self.show_hide_html)
+
+        self.wTxt_html = QPlainTextEdit()
+        self.wTxt_html.setReadOnly(True)
+        self.wTxt_html.appendHtml(f'{usage_stats_html}')
+        self.wTxt_html.setMinimumSize(500, 250)
+        self.wTxt_html.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.wTxt_html.hide()
 
         wLbl_2 = QLabel('''
 (the data might not fully be populated yet, you need to progress through the GUI steps first)
@@ -49,13 +58,25 @@ After a successful OAT firmware upload the following data will be sent to our st
         italic_font.setItalic(True)
         wLbl_2.setFont(italic_font)
         wLbl_2.setWordWrap(True)
+        wLbl_2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(wLbl_1)
-        self.layout.addWidget(wTxt_html)
+        self.layout.addWidget(self.wBtn_show_hide)
+        self.layout.addWidget(self.wTxt_html)
         self.layout.addWidget(wLbl_2)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
+
+    def show_hide_html(self):
+        show_hide_text = self.wBtn_show_hide.text()
+        if self.wTxt_html.isVisible():
+            self.wTxt_html.hide()
+            show_hide_text = show_hide_text.replace('▼', '▶')
+        else:
+            self.wTxt_html.show()
+            show_hide_text = show_hide_text.replace('▶', '▼')
+        self.wBtn_show_hide.setText(show_hide_text)
 
 
 def dict_to_html(in_dict: dict) -> str:
