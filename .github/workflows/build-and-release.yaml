@@ -130,6 +130,9 @@ jobs:
     if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
     needs: [build-windows, build-virtualenv]
     runs-on: 'ubuntu-20.04'
+    permissions:
+      # See https://github.com/softprops/action-gh-release/issues/236#issuecomment-1150530128
+      contents: write
 
     steps:
       - name: Download all artifacts
