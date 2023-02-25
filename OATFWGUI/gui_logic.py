@@ -4,7 +4,6 @@ import sys
 import zipfile
 import json
 from typing import List, Optional
-from collections import namedtuple
 from pathlib import Path
 
 from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
@@ -15,10 +14,9 @@ import requests
 from log_utils import LogObject
 from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
 from external_processes import external_processes, get_install_dir
+from gui_state import LogicState, PioEnv, FWVersion
 
 log = logging.getLogger('')
-FWVersion = namedtuple('FWVersion', ['nice_name', 'url'])
-PioEnv = namedtuple('FWVersion', ['nice_name', 'raw_name'])
 
 
 def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
@@ -45,10 +43,8 @@ def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
     }
     pio_environments = []
     for raw_env in raw_pio_envs:
-        if raw_env in nice_name_lookup:
-            pio_env = PioEnv(nice_name_lookup[raw_env], raw_env)
-        else:
-            pio_env = PioEnv(raw_env, raw_env)
+        # Try to match a raw env to nice name, fallback to raw env
+        pio_env = PioEnv(nice_name_lookup.get(raw_env, raw_env), raw_env)
         pio_environments.append(pio_env)
     return pio_environments
 
@@ -75,22 +71,6 @@ def extract_fw(zipfile_name: Path) -> Path:
         zip_ref.extractall()
     log.info(f'Extracted FW to {fw_dir}')
     return fw_dir
-
-
-class LogicState:
-    release_list: Optional[List[FWVersion]] = None
-    release_idx: Optional[int] = None
-    fw_dir: Optional[Path] = None
-    pio_envs: List[PioEnv] = []
-    pio_env: Optional[str] = None
-    config_file_path: Optional[str] = None
-    build_success: bool = False
-    serial_ports: List[str] = []
-    upload_port: Optional[str] = None
-
-    def __setattr__(self, key, val):
-        log.debug(f'LogicState updated: {key} {getattr(self, key)} -> {val}')
-        super().__setattr__(key, val)
 
 
 class BusinessLogic:
@@ -184,8 +164,8 @@ class BusinessLogic:
 
     def download_and_extract_fw(self) -> str:
         self.main_app.wSpn_download.setState(BusyIndicatorState.BUSY)
-        fw_idx = self.main_app.wCombo_fw_version.currentIndex()
-        zip_url = self.logic_state.release_list[fw_idx].url
+        self.logic_state.release_idx = self.main_app.wCombo_fw_version.currentIndex()
+        zip_url = self.logic_state.release_list[self.logic_state.release_idx].url
         zipfile_name = download_fw(zip_url)
 
         self.logic_state.fw_dir = extract_fw(zipfile_name)
@@ -256,8 +236,8 @@ class BusinessLogic:
     @Slot()
     def pio_build_finished(self):
         log.info(f'platformio build finished')
-        exit_state = external_processes['platformio'].qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
+        exit_code = external_processes['platformio'].qproc.exitCode()
+        if exit_code == 0:
             log.info('Normal exit')
             self.main_app.wSpn_build.setState(BusyIndicatorState.GOOD)
             self.logic_state.build_success = True
@@ -278,14 +258,21 @@ class BusinessLogic:
     @Slot()
     def pio_refresh_ports_finished(self):
         log.info(f'platformio refresh ports finished')
-        exit_state = external_processes['platformio'].qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
+        exit_code = external_processes['platformio'].qproc.exitCode()
+        if exit_code == 0:
             log.info('Normal exit')
         else:
             log.error('Did not exit normally')
         stdout_data = external_processes['platformio'].stdout_text
-        all_port_data = json.loads(stdout_data)
-        self.logic_state.serial_ports = [port_data['port'] for port_data in all_port_data]
+        if stdout_data:
+            try:
+                all_port_data = json.loads(stdout_data)
+            except json.decoder.JSONDecodeError as e:
+                log.error(f'JSONDecodeError: {e} with\n{repr(stdout_data)}')
+                all_port_data = []
+            self.logic_state.serial_ports = [port_data['port'] for port_data in all_port_data]
+        else:
+            self.logic_state.serial_ports = []
 
         self.main_app.wCombo_serial_port.clear()
         for serial_port in self.logic_state.serial_ports:
@@ -325,8 +312,8 @@ class BusinessLogic:
     @Slot()
     def pio_upload_finished(self):
         log.info(f'platformio upload finished')
-        exit_state = external_processes['platformio'].qproc.exitCode()
-        if exit_state == QProcess.NormalExit:
+        exit_code = external_processes['platformio'].qproc.exitCode()
+        if exit_code == 0:
             log.info('Normal exit')
             self.main_app.wSpn_upload.setState(BusyIndicatorState.GOOD)
         else:

@@ -31,7 +31,8 @@ class ExternalProcess:
 
         all_args = self.base_args + extra_args
         self.qproc.setArguments(all_args)
-        self.qproc.finished.connect(finish_signal)
+        if finish_signal is not None:
+            self.qproc.finished.connect(finish_signal)
         log.info(f'Starting {self.proc_name} with args: {all_args}')
         self.qproc.start()
         # Not sure why, but the process doesn't start without these
@@ -45,6 +46,7 @@ class ExternalProcess:
         self.cleanup()
 
     def cleanup(self):
+        log.debug(f'Cleaning up external process: {self.proc_name}. Exited with {self.qproc.exitCode()}')
         self.stdout_text = ''
         self.stderr_text = ''
         self.qproc.deleteLater()
