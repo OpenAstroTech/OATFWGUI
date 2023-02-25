@@ -7,6 +7,7 @@ import argparse
 import time
 import tempfile
 import requests
+import json
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
@@ -18,8 +19,8 @@ from PySide6.QtGui import QAction, QActionGroup
 from _version import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
-from external_processes import external_processes, add_external_process, get_install_dir
-from anon_usage_data import get_uuid
+from external_processes import external_processes, add_external_process
+from anon_usage_data import create_anon_stats
 
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
 parser.add_argument('--no-gui', action='store_true',
@@ -207,6 +208,9 @@ def main():
         retcode = app.exec()
     else:
         log.debug('NOT executing app')
+        log.debug('Testing anonymous statistics creation')
+        anon_stats = create_anon_stats(widget.main_widget.logic.logic_state)
+        log.debug(f'Statistics: {json.dumps(anon_stats)}')
         # Wait a bit before exiting, prevents Qt complaining about deleted objects
         time.sleep(1.0)
         retcode = 0

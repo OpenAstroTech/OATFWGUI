@@ -101,11 +101,6 @@ class BusinessLogic:
         # Need to create in the main thread else it doesn't work?
         self.avr_dude_logwatch = LoggedExternalFile()
 
-        # TODO: This is only to support no-gui operation. Is there a better way?
-        log.debug('Testing anonymous statistics creation')
-        anon_stats = create_anon_stats(self.logic_state)
-        log.debug(f'Statistics: {json.dumps(anon_stats)}')
-
     def spawn_worker_thread(self, fn):
         @Slot()
         def worker_thread_slot():
