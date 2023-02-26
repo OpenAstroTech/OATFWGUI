@@ -11,7 +11,7 @@ from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButt
 
 import requests
 
-from log_utils import LogObject
+from log_utils import LogObject, LoggedExternalFile
 from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
 from external_processes import external_processes, get_install_dir
 from gui_state import LogicState, PioEnv, FWVersion
@@ -94,6 +94,9 @@ class BusinessLogic:
         self.spawn_worker_thread(self.get_fw_versions)()
         # Manually spawn a worker to refresh serial ports
         self.spawn_worker_thread(self.refresh_ports)()
+
+        # Need to create in the main thread else it doesn't work?
+        self.avr_dude_logwatch = LoggedExternalFile()
 
     def spawn_worker_thread(self, fn):
         @Slot()
@@ -298,6 +301,16 @@ class BusinessLogic:
             log.error(f"platformio already running! {external_processes['platformio']}")
             return
 
+        # Stupid fix for avrdude outputting to stderr by default
+        if self.logic_state.pio_env is not None and any(
+                avr_env_substr in self.logic_state.pio_env.lower()
+                for avr_env_substr in ['mksgenl', 'ramps']):
+            avrdude_logfile_name = self.avr_dude_logwatch.create_file(file_suffix='_avrdude_log')
+            # Note: avrdude doesn't strip the filename! So no spaces at the beginning
+            env_vars = {'PLATFORMIO_UPLOAD_FLAGS': f'-l{avrdude_logfile_name}'}
+        else:
+            env_vars = {}
+
         external_processes['platformio'].start(
             ['run',
              '--environment', self.logic_state.pio_env,
@@ -307,11 +320,13 @@ class BusinessLogic:
              '--upload-port', self.logic_state.upload_port,
              ],
             self.pio_upload_finished,
+            env_vars=env_vars,
         )
 
     @Slot()
     def pio_upload_finished(self):
         log.info(f'platformio upload finished')
+        self.avr_dude_logwatch.stop()
         exit_code = external_processes['platformio'].qproc.exitCode()
         if exit_code == 0:
             log.info('Normal exit')

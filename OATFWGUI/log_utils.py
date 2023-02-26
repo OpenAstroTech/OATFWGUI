@@ -3,11 +3,12 @@ import sys
 import os
 import enum
 import html
+import tempfile
 from pathlib import Path
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Optional
 
-from PySide6.QtCore import Signal, QObject
+from PySide6.QtCore import Slot, Signal, QObject, QFileSystemWatcher, QFile
 
 from external_processes import get_install_dir
 from platform_check import get_platform, PlatformEnum
@@ -73,6 +74,44 @@ class CustomFormatter(logging.Formatter):
         else:
             log_str = super().format(record)
         return log_str
+
+
+class LoggedExternalFile:
+    def __init__(self):
+        # Don't want to global the `log` variable here (idk if things will break)
+        self.log = logging.getLogger('')
+
+        self.file_watcher = QFileSystemWatcher()
+        self.file_watcher.fileChanged.connect(self.file_changed)
+
+        self.tempfile: Optional[tempfile.NamedTemporaryFile] = None
+
+    def create_file(self, file_suffix: str = '') -> Optional[str]:
+        self.tempfile = tempfile.NamedTemporaryFile(mode='r', suffix=f'{file_suffix}', delete=False)
+        self.log.debug(f'Logging external file {self.tempfile.name}')
+
+        watch_success = self.file_watcher.addPath(self.tempfile.name)
+        if not watch_success:
+            self.log.warning(f'Could not watch external file: {self.tempfile.name}')
+            return None
+        return self.tempfile.name
+
+    @Slot()
+    def file_changed(self, _path: str):
+        lines = self.tempfile.readlines()
+        for line in lines:
+            if 'error' in line.lower():
+                self.log.error(line)
+            else:
+                self.log.info(line)
+
+    def stop(self):
+        self.log.debug(f'Cleaning up logged external file {self.tempfile.name}')
+        self.tempfile.close()
+        self.file_watcher.removePath(self.tempfile.name)
+        remove_ok = QFile.remove(self.tempfile.name)
+        if not remove_ok:
+            self.log.warning(f'Could not remove temp file {self.tempfile.name}')
 
 
 def setup_logging(logger, qt_log_obj: LogObject):
