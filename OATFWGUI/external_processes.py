@@ -1,9 +1,9 @@
 import sys
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 from pathlib import Path
 
-from PySide6.QtCore import Slot, QProcess, QStandardPaths
+from PySide6.QtCore import Slot, QProcess, QStandardPaths, QProcessEnvironment
 
 log = logging.getLogger('')
 
@@ -19,10 +19,18 @@ class ExternalProcess:
 
         self.qproc: Optional[QProcess] = None
 
-    def start(self, extra_args: List[str], finish_signal: Optional):
+    def start(self, extra_args: List[str], finish_signal: Optional[Callable],
+              env_vars: Optional[Dict[str, str]] = None):
         self.qproc = QProcess()
         self.qproc.setProgram(self.proc_name)
         self.qproc.setArguments(self.base_args)
+
+        proc_env = QProcessEnvironment.systemEnvironment()
+        if env_vars:
+            for k, v in env_vars.items():
+                proc_env.insert(k, v)
+        log.debug(f'Process environment:{proc_env.toStringList()}')
+        self.qproc.setProcessEnvironment(proc_env)
 
         # signals
         self.qproc.readyReadStandardOutput.connect(self.handle_stdout)
@@ -33,7 +41,7 @@ class ExternalProcess:
         self.qproc.setArguments(all_args)
         if finish_signal is not None:
             self.qproc.finished.connect(finish_signal)
-        log.info(f'Starting {self.proc_name} with args: {all_args}')
+        log.info(f'Starting {self.proc_name} with args: {all_args} and env {env_vars}')
         self.qproc.start()
         # Not sure why, but the process doesn't start without these
         proc_started = self.qproc.waitForStarted(10 * 1000)
