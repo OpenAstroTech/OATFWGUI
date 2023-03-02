@@ -379,7 +379,8 @@ class MainWidget(QWidget):
         self.wBtn_upload_fw.setEnabled(False)
         self.wSpn_upload = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
-        self.wChk_upload_stats = QCheckBox('Upload anonymous statistics?')
+        self.wChk_upload_stats = QCheckBox('Upload anonymous statistics?',
+                                           toolTip='After a successful firmware update, upload anonymous firmware details to the OAT devs')
         self.wBtn_what_stats = QPushButton('What will be uploaded?')
 
         self.logText = QPlainTextEdit()
