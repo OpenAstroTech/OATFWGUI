@@ -57,8 +57,8 @@ function check_py_version {
     echo "Python major version $PY_VER_MAJ ($PY_VER_ALL) is not supported"
     return 1
   fi
-  # Only support 3.7+
-  if ! list_include_item '7 8 9 10 11' "$PY_VER_MIN"; then
+  # Only support 3.7+, <3.11
+  if ! list_include_item '7 8 9 10' "$PY_VER_MIN"; then
     echo "Python minor version $PY_VER_MIN ($PY_VER_ALL) is not supported"
     return 1
   fi
