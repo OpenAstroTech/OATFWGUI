@@ -145,7 +145,7 @@ class BusinessLogic:
     def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
         log.info(f'Grabbing available FW versions from {fw_api_url}')
-        response = requests.get(fw_api_url)
+        response = requests.get(fw_api_url, timeout=5000)
         releases_list = [
             FWVersion('develop',
                       'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/develop.zip'),

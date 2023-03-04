@@ -6,8 +6,11 @@ import os
 import argparse
 import time
 import tempfile
+import requests
 from pathlib import Path
+from typing import Dict, Tuple, Optional
 
+import semver
 from PySide6.QtCore import Slot, Qt
 from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel
 from PySide6.QtGui import QAction, QActionGroup
@@ -52,6 +55,48 @@ def setup_environment():
     external_processes['platformio'].start(['settings', 'set', 'check_prune_system_threshold', '0'], None)
 
 
+def raw_version_to_semver() -> Optional[semver.VersionInfo]:
+    # Needs to work for:
+    # - release: 0.0.12-release+4702dd
+    # - CI build: 0.0.12-dev+4702dd
+    # - local unreleased: 0.0.12
+    try:
+        semver_ver = semver.VersionInfo.parse(__version__)
+    except ValueError as e:
+        log.warning(f'Could not parse my own version string {__version__} {e}')
+        return None
+    return semver_ver
+
+
+def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
+    local_ver = raw_version_to_semver()
+    if local_ver is None:
+        return None
+
+    oatfwgui_api_url = 'https://api.github.com/repos/OpenAstroTech/OATFWGUI/releases'
+    log.info(f'Checking for new OATFWGUI release from {oatfwgui_api_url}')
+    response = requests.get(oatfwgui_api_url, timeout=1000)
+
+    releases: Dict[semver.VersionInfo, str] = {}
+    latest_release_ver: Optional[semver.VersionInfo] = None
+    for release_json in response.json():
+        try:
+            release_ver = semver.VersionInfo.parse(release_json['tag_name'])
+        except ValueError as e:
+            log.warning(f'Could not parse tag name as semver {release_json["tag_name"]} {e}')
+            continue
+        releases[release_ver] = release_json['html_url']
+        if latest_release_ver is None or release_ver > latest_release_ver:
+            latest_release_ver = release_ver
+
+    if latest_release_ver > local_ver:
+        log.info(f'New version is available! {latest_release_ver} > {local_ver}')
+        return str(latest_release_ver), releases[latest_release_ver]
+    else:
+        log.debug(f'No new version {latest_release_ver} <= {local_ver}')
+        return None
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
@@ -74,10 +119,21 @@ class MainWindow(QMainWindow):
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+
+        new_release_tup = check_new_oatfwgui_release()
+        if new_release_tup is not None:
+            new_release_html = f'<a href="{new_release_tup[1]}">New release {new_release_tup[0]} available!</a>'
+        else:
+            new_release_html = ''
+        self.new_release_hyperlink = QLabel(new_release_html)
+        self.new_release_hyperlink.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.new_release_hyperlink.setOpenExternalLinks(True)
+        self.status_bar.addWidget(self.new_release_hyperlink)  # addWidget == left side
+
         self.bug_hyperlink = QLabel('<a href="https://github.com/OpenAstroTech/OATFWGUI/issues">Report a bug</a>')
         self.bug_hyperlink.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.bug_hyperlink.setOpenExternalLinks(True)
-        self.status_bar.addPermanentWidget(self.bug_hyperlink)
+        self.status_bar.addPermanentWidget(self.bug_hyperlink)  # addPermanentWidget == right side
 
         log.debug('Creating main widget')
         self.main_widget = MainWidget(l_o)
