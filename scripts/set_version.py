@@ -4,12 +4,13 @@ import sys
 import argparse
 
 import git
+import semver
 
 parser = argparse.ArgumentParser(usage='Set package version, checking to make sure the latest git tag matches')
 parser.add_argument('-f', '--file', default='_version.py',
                     help='Version file to modify (default %(default)s')
 parser.add_argument('PRE',
-                    help='Prefix to give the version')
+                    help='Semver pre-release')
 
 
 def get_latest_tag():
@@ -45,9 +46,12 @@ def main():
     print(f'HEAD sha is {head_sha}')
     head_short_sha = head_sha[:6]
 
-    new_version_str = f'{args.PRE}-{old_version_str}-{head_short_sha}'
-    print(f'Writing new version string: {new_version_str}')
+    new_version_str = f'{old_version_str}-{args.PRE}+{head_short_sha}'
+    if not semver.VersionInfo.isvalid(new_version_str):
+        print(f'{new_version_str} is not a valid version!')
+        sys.exit(1)
 
+    print(f'Writing new version string: {new_version_str}')
     new_file_contents = old_file_contents.replace(old_version_str, new_version_str)
     with open(args.file, 'w') as fp:
         fp.write(new_file_contents)
