@@ -81,6 +81,9 @@ jobs:
 
   build-virtualenv:
     runs-on: 'ubuntu-20.04'
+    strategy:
+      matrix:
+        py_version: [ "3.7", "3.8", "3.9", "3.10", "3.11" ]
 
     steps:
     - uses: actions/checkout@v3
@@ -88,7 +91,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
+        python-version: ${{ matrix.py_version }}
         cache: 'pip'
 
     - name: Run set_version script
@@ -119,7 +122,9 @@ jobs:
     # Work around stupid issue that GHA can't store file permissions on artifacts
     - name: Store which files are executable
       run: pushd dist/ && find . -type f -executable -print > restore_executable_permissions.txt && popd
+
     - name: Upload artifact
+      if: ${{ matrix.py_version }} == "3.10" # Only publish one artifact
       uses: actions/upload-artifact@v3
       with:
         name: OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}_${{ runner.arch }}

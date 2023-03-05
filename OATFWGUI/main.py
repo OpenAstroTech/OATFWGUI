@@ -75,7 +75,10 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
 
     oatfwgui_api_url = 'https://api.github.com/repos/OpenAstroTech/OATFWGUI/releases'
     log.info(f'Checking for new OATFWGUI release from {oatfwgui_api_url}')
-    response = requests.get(oatfwgui_api_url, timeout=1000)
+    response = requests.get(oatfwgui_api_url, timeout=2000)
+    if response.status_code != requests.codes.ok:
+        log.error(f'Failed to check for new release: {response.status_code} {response.reason} {response.text}')
+        return None
 
     releases: Dict[semver.VersionInfo, str] = {}
     latest_release_ver: Optional[semver.VersionInfo] = None
