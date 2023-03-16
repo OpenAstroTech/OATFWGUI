@@ -101,10 +101,10 @@ def create_anon_stats(logic_state: LogicState) -> dict:
 
     # Catch-all for these so we never crash when getting anon-stats
     try:
-        uuid = get_uuid()
+        computer_uuid = get_computer_uuid()
     except Exception as e:
         log.error(f'get_uuid exception: {e}')
-        uuid = 'unknown'
+        computer_uuid = 'unknown'
     try:
         approx_lat, approx_lon = get_approx_location()
     except Exception as e:
@@ -112,7 +112,7 @@ def create_anon_stats(logic_state: LogicState) -> dict:
         approx_lat, approx_lon = None, None
 
     stats = {
-        'uuid': uuid,
+        'computer_uuid': computer_uuid,
         'pio_env': logic_state.pio_env,
         'release_version': release_name,
         'config_file': config_file,
@@ -128,7 +128,7 @@ def upload_anon_stats(anon_stats: dict) -> bool:
     return False
 
 
-def get_uuid() -> str:
+def get_computer_uuid() -> str:
     machine_id_fn = {
         PlatformEnum.WINDOWS: get_uuid_windows,
         PlatformEnum.LINUX: get_uuid_linux,
