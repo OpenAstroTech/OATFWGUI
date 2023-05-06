@@ -28,6 +28,12 @@ jobs:
       run: curl -L "https://www.python.org/ftp/python/3.10.7/python-3.10.7-embed-amd64.zip" -o python-embedded.zip
     - name: Unzip python embedded
       run: unzip python-embedded.zip -d dist/.python_local
+    - name: Weird DLL workaround so that pip can see all default embedded python modules
+      # See https://github.com/python/cpython/issues/100399#issuecomment-1381486117
+      run: |
+        mkdir dist/.python_local/DLLs
+        GLOBIGNORE="dist/.python_local/python3*.dll"
+        mv -v dist/.python_local/*.{dll,pyd} dist/.python_local/DLLs
     - name: Modify python embedded to allow pip to run # See https://stackoverflow.com/questions/42666121/pip-with-embedded-python
       run: rm -v dist/.python_local/python310._pth
     - name: Download get-pip.py
