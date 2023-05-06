@@ -92,11 +92,22 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
         if latest_release_ver is None or release_ver > latest_release_ver:
             latest_release_ver = release_ver
 
-    if latest_release_ver > local_ver:
-        log.info(f'New version is available! {latest_release_ver} > {local_ver}')
+    if latest_release_ver is None:
+        log.debug(f'No latest release? {response.json()}')
+        return None
+
+    # need to 'finalize' the version, as we use the prerelease/build fields to indicate a release version
+    # i.e. 0.0.12 > 0.0.12-release+4702dd
+    latest_release_ver_finialized = latest_release_ver.finalize_version()
+    local_ver_finialized = local_ver.finalize_version()
+
+    if latest_release_ver_finialized > local_ver_finialized:
+        log.info(f'New version is available! '
+                 f'{latest_release_ver_finialized}({latest_release_ver}) > {local_ver_finialized}({local_ver})')
         return str(latest_release_ver), releases[latest_release_ver]
     else:
-        log.debug(f'No new version {latest_release_ver} <= {local_ver}')
+        log.debug(f'No new version '
+                  f'{latest_release_ver_finialized}({latest_release_ver}) <= {local_ver_finialized}({local_ver})')
         return None
 
 
