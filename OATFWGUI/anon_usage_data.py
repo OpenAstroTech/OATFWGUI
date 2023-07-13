@@ -112,7 +112,7 @@ def create_anon_stats(logic_state: LogicState) -> dict:
         approx_lat, approx_lon = None, None
 
     stats = {
-        'computer_uuid': computer_uuid,
+        'host_uuid': computer_uuid,
         'pio_env': logic_state.pio_env,
         'release_version': release_name,
         'config_file': config_file,
@@ -123,9 +123,17 @@ def create_anon_stats(logic_state: LogicState) -> dict:
 
 
 def upload_anon_stats(anon_stats: dict) -> bool:
-    log.info('Uploading statistics')
-
-    return False
+    analytics_url = 'http://config.cloud.openastrotech.com/api/v1/config/'
+    log.info(f'Uploading statistics to {analytics_url}')
+    try:
+        r = requests.post(analytics_url, json=anon_stats, timeout=2.0)
+    except Exception as e:
+        log.error(f'Failed to POST statistics: {e}')
+        return False
+    if r.status_code != requests.codes.ok:
+        log.error(f'Failed to POST statistics: {r.status_code} {r.reason} {r.text}')
+        return False
+    return True
 
 
 def get_computer_uuid() -> str:
