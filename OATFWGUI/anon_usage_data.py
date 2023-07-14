@@ -5,6 +5,7 @@ import json
 import requests
 from pathlib import Path
 from typing import Tuple
+from functools import lru_cache
 
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout, QLabel, QPushButton, QSizePolicy
 from PySide6.QtGui import QFont
@@ -136,6 +137,7 @@ def upload_anon_stats(anon_stats: dict) -> bool:
     return True
 
 
+@lru_cache(maxsize=1)
 def get_computer_uuid() -> str:
     machine_id_fn = {
         PlatformEnum.WINDOWS: get_uuid_windows,
@@ -175,11 +177,16 @@ def get_uuid_linux() -> str:
     return machine_id_contents
 
 
+def to_nearest_half(num: float) -> float:
+    return round(num * 2, 0) / 2
+
+
+@lru_cache(maxsize=1)
 def get_approx_location() -> Tuple[float, float]:
     geo_ip_url = 'https://ipinfo.io/loc'
     response = requests.get(geo_ip_url, timeout=2.0)
     resp_str = response.content.decode().strip()
     lat_str, lon_str = resp_str.split(',')
-    lat_approx = round(float(lat_str), 1)
-    lon_approx = round(float(lon_str), 1)
+    lat_approx = to_nearest_half(float(lat_str))
+    lon_approx = to_nearest_half(float(lon_str))
     return lat_approx, lon_approx
