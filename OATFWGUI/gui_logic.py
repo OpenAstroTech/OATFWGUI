@@ -7,7 +7,8 @@ from typing import List, Optional
 from pathlib import Path
 
 from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
-from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout, QHBoxLayout
+from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout, \
+    QHBoxLayout, QCheckBox
 
 import requests
 
@@ -15,6 +16,7 @@ from log_utils import LogObject, LoggedExternalFile
 from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
 from external_processes import external_processes, get_install_dir
 from gui_state import LogicState, PioEnv, FWVersion
+from anon_usage_data import AnonStatsDialog, create_anon_stats, upload_anon_stats
 
 log = logging.getLogger('')
 
@@ -86,6 +88,7 @@ class BusinessLogic:
         main_app.wBtn_refresh_ports.clicked.connect(self.spawn_worker_thread(self.refresh_ports))
         main_app.wCombo_serial_port.currentIndexChanged.connect(self.serial_port_combo_box_changed)
         main_app.wBtn_upload_fw.clicked.connect(self.spawn_worker_thread(self.upload_fw))
+        main_app.wBtn_what_stats.clicked.connect(self.modal_show_stats)
 
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(1)  # Only one worker
@@ -335,6 +338,18 @@ class BusinessLogic:
             log.error('Did not exit normally')
             self.main_app.wSpn_upload.setState(BusyIndicatorState.BAD)
 
+        if self.main_app.wChk_upload_stats.isChecked():
+            log.info('Uploading anonymous usage statistics')
+            anon_stats = create_anon_stats(self.logic_state)
+            upload_anon_stats(anon_stats)
+        else:
+            log.info('NOT uploading anonymous usage statistics')
+
+    @Slot()
+    def modal_show_stats(self):
+        dlg = AnonStatsDialog(self.logic_state, self.main_app)
+        dlg.exec_()
+
 
 class MainWidget(QWidget):
     def __init__(self, log_object: LogObject):
@@ -364,6 +379,10 @@ class MainWidget(QWidget):
         self.wBtn_upload_fw.setEnabled(False)
         self.wSpn_upload = QBusyIndicatorGoodBad(fixed_size=(50, 50))
 
+        self.wChk_upload_stats = QCheckBox('Upload anonymous statistics?',
+                                           toolTip='After a successful firmware update, upload anonymous firmware details to the OAT devs')
+        self.wBtn_what_stats = QPushButton('What will be uploaded?')
+
         self.logText = QPlainTextEdit()
         self.logText.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.logText.setReadOnly(True)
@@ -375,7 +394,9 @@ class MainWidget(QWidget):
             [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw,         self.wSpn_download],
             [self.wMsg_pio_env,    self.wCombo_pio_env,    self.wBtn_select_local_config, self.wBtn_build_fw],
             [self.wMsg_config_path, None, None, self.wSpn_build],
-            [self.wBtn_refresh_ports, self.wCombo_serial_port, self.wBtn_upload_fw, self.wSpn_upload]
+            [self.wBtn_refresh_ports, self.wCombo_serial_port, self.wBtn_upload_fw, self.wSpn_upload],
+            [None, None, self.wChk_upload_stats, None],
+            [None, None, self.wBtn_what_stats, None],
         ]
         for y, row_arr in enumerate(layout_arr):
             for x, widget in enumerate(row_arr):
