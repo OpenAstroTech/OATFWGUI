@@ -143,6 +143,7 @@ def get_computer_uuid() -> str:
     machine_id_fn = {
         PlatformEnum.WINDOWS: get_uuid_windows,
         PlatformEnum.LINUX: get_uuid_linux,
+        PlatformEnum.MACOS: get_uuid_macos,
         PlatformEnum.UNKNOWN: lambda: 'unknown platform',
     }.get(get_platform(), lambda: 'unknown, unhandled platform')
     machine_id_str = machine_id_fn()
@@ -176,6 +177,20 @@ def get_uuid_linux() -> str:
     with open(id_file, 'r') as f:
         machine_id_contents = f.read().strip()
     return machine_id_contents
+
+
+def get_uuid_macos() -> str:
+    sub_proc = subprocess.run(
+        ['ioreg',
+         '-rd1',
+         '-c',
+         'IOPlatformExpertDevice',
+         ],
+        capture_output=True)
+    if sub_proc.returncode != 0:
+        return 'unknown-macos'
+    ioreg_output = sub_proc.stdout.decode('UTF-8')
+    return windows_uuid
 
 
 def to_nearest_half(num: float) -> float:

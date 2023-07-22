@@ -123,7 +123,7 @@ jobs:
         name: ${{ env.ARTIFACT_ZIP_NAME }}
         path: ${{ env.ARTIFACT_ZIP_NAME }}.zip
 
-  build-virtualenv:
+  build-linux:
     runs-on: 'ubuntu-20.04'
     strategy:
       matrix:
@@ -177,10 +177,56 @@ jobs:
         name: ${{ env.ARTIFACT_ZIP_NAME }}
         path: ${{ env.ARTIFACT_ZIP_NAME }}.zip
 
+  build-macos:
+    runs-on: 'macos-11'
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Run set_version script
+      uses: ./.github/actions/run-set_version_script
+
+    - run: mkdir dist/
+    - run: cp -rv OATFWGUI/ dist/
+    - run: cp -v scripts/OATFWGUI_Mac.command dist/
+    - run: cp -v requirements.txt dist/
+
+    - name: Smoke test
+      run: QT_QPA_PLATFORM=offscreen ./dist/OATFWGUI_Mac.command --no-gui
+
+    - name: Retrieve version
+      id: version
+      run: echo "OATFWGUI_VERSION=$(./dist/OATFWGUI_Mac.command --version | tail -1)" >> $GITHUB_ENV
+    - name: Output version
+      run: echo "Version is ${{ env.OATFWGUI_VERSION }}"
+
+    - name: Remove smoke test artifacts
+      run: |
+        rm -rv ./dist/logs
+        rm -rv ./dist/.venv_*
+        rm -rv ./dist/OATFWGUI/__pycache__
+    - name: Set artifact name
+      run: echo "ARTIFACT_ZIP_NAME=OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}_${{ runner.arch }}" >> $GITHUB_ENV
+    - name: Rename and Zip artifacts
+      run: mv dist $ARTIFACT_ZIP_NAME && 7z a -tzip $ARTIFACT_ZIP_NAME.zip $ARTIFACT_ZIP_NAME/
+      env:
+        ARTIFACT_ZIP_NAME: ${{ env.ARTIFACT_ZIP_NAME }}
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.ARTIFACT_ZIP_NAME }}
+        path: ${{ env.ARTIFACT_ZIP_NAME }}.zip
+
   publish-release:
     # only publish release on tags
     if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
-    needs: [build-windows, build-virtualenv]
+    needs: [build-windows, build-linux, build-macos]
     runs-on: 'ubuntu-20.04'
     permissions:
       # See https://github.com/softprops/action-gh-release/issues/236#issuecomment-1150530128
