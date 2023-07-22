@@ -19,7 +19,8 @@ from PySide6.QtGui import QAction, QActionGroup
 from _version import __version__
 from log_utils import LogObject, setup_logging
 from gui_logic import MainWidget
-from external_processes import external_processes, add_external_process
+from platform_check import get_platform, PlatformEnum
+from external_processes import external_processes, add_external_process, get_install_dir
 from anon_usage_data import create_anon_stats
 
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
@@ -30,11 +31,33 @@ parser.add_argument('-v', '--version', action='version',
                     help='Print version string and exit')
 
 
+def check_and_warn_directory_path_length(dir_to_check: Path, max_path_len: int, warn_str: str):
+    num_chars_in_dir = len(str(dir_to_check))
+    if num_chars_in_dir > max_path_len:
+        # Make it a big 'ol block warning
+        general_warn_str = f'''Path {dir_to_check} might
+have too many characters in it ({num_chars_in_dir})! Downloading/building firmware may create files with path
+lengths greater than the default Windows path length of 260 characters.
+'''
+        for log_line in (general_warn_str + warn_str).split('\n'):
+            log.warning(log_line)
+
+
 def setup_environment():
+    install_dir = get_install_dir()
+    log.debug(f'Install dir is {install_dir}')
+    if get_platform() == PlatformEnum.WINDOWS:
+        # With 54fa285a dependencies the maximum path length is 180.
+        # 260-152=108, but derate to 100 (for possible future increases)
+        # pushd {install_dir} && find . -print|awk '{print length($0), $0}'|sort --numeric --reverse|head -n20
+        log_msg = f'''If you get 'file not found' errors the easiest solution is to move
+the {install_dir.resolve()} folder somewhere with less characters in the path.'''
+        check_and_warn_directory_path_length(install_dir, 100, log_msg)
+
     # Putting the platformio core directory in a temporary folder is only needed because
     # Windows doesn't support long path names... :/
-    pio_core_dir = Path(tempfile.gettempdir(), f'.pio_OATFWGUI_{__version__}')
-    log.debug(f'Setting PLATFORMIO_CORE_DIR to {pio_core_dir}')
+    pio_core_dir = Path(tempfile.gettempdir(), f'.pioOATFWGUI{__version__}')
+    log.info(f'Setting PLATFORMIO_CORE_DIR to {pio_core_dir}')
     os.environ['PLATFORMIO_CORE_DIR'] = str(pio_core_dir)
 
     python_interpreter_path = Path(sys.executable)
@@ -197,7 +220,7 @@ class MainWindow(QMainWindow):
 def main():
     setup_environment()
     log.debug('Creating app')
-    app = QApplication(sys.argv)
+    app = QApplication()
 
     log.debug('Creating main window')
     widget = MainWindow()
@@ -222,4 +245,5 @@ if __name__ == '__main__':
     log = logging.getLogger('')
     l_o = LogObject()
     setup_logging(log, l_o)
+    log.debug('Set up logging')
     main()
