@@ -78,7 +78,7 @@ jobs:
         rm -rv ./dist/logs
         rm -rv ./dist/OATFWGUI/__pycache__
     - name: Set artifact name
-      run: echo "ARTIFACT_ZIP_NAME=OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}_${{ runner.arch }}" >> $GITHUB_ENV
+      run: echo "ARTIFACT_ZIP_NAME=OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}" >> $GITHUB_ENV
     - name: Rename and Zip artifacts
       run: mv dist $ARTIFACT_ZIP_NAME && 7z a -tzip $ARTIFACT_ZIP_NAME.zip $ARTIFACT_ZIP_NAME/
       env:
@@ -131,7 +131,7 @@ jobs:
         rm -rv ./dist/.venv_*
         rm -rv ./dist/OATFWGUI/__pycache__
     - name: Set artifact name
-      run: echo "ARTIFACT_ZIP_NAME=OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}_${{ runner.arch }}" >> $GITHUB_ENV
+      run: echo "ARTIFACT_ZIP_NAME=OATFWGUI_${{ env.OATFWGUI_VERSION }}_${{ runner.os }}" >> $GITHUB_ENV
     - name: Rename and Zip artifacts
       run: mv dist $ARTIFACT_ZIP_NAME && 7z a -tzip $ARTIFACT_ZIP_NAME.zip $ARTIFACT_ZIP_NAME/
       env:
