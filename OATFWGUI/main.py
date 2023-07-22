@@ -48,11 +48,11 @@ def setup_environment():
     log.debug(f'Install dir is {install_dir}')
     if get_platform() == PlatformEnum.WINDOWS:
         # With 54fa285a dependencies the maximum path length is 180.
-        # 260-180=80, but derate to 75 (for possible future increases)
+        # 260-152=108, but derate to 100 (for possible future increases)
         # pushd {install_dir} && find . -print|awk '{print length($0), $0}'|sort --numeric --reverse|head -n20
         log_msg = f'''If you get 'file not found' errors the easiest solution is to move
 the {install_dir.resolve()} folder somewhere with less characters in the path.'''
-        check_and_warn_directory_path_length(install_dir, 75, log_msg)
+        check_and_warn_directory_path_length(install_dir, 100, log_msg)
 
     # Putting the platformio core directory in a temporary folder is only needed because
     # Windows doesn't support long path names... :/
