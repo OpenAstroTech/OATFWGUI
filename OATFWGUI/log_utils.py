@@ -65,10 +65,13 @@ class CustomFormatter(logging.Formatter):
         return pre, post
 
     def _colour_html(self, levelno: int) -> Tuple[str, str]:
+        # https://coolors.co/contrast-checker/c9cd02-ffffff
+        # Light theme background: #FFFFFF
+        # Dark theme background: #1B1E20
         pre, post = {
             logging.DEBUG: ('<p style="color:SlateGray">', '</p>'),
             logging.INFO: ('<p style="color:grey">', '</p>'),
-            logging.WARNING: ('<p style="color:yellow">', '</p>'),
+            logging.WARNING: ('<p style="color:#C9CD02">', '</p>'),
             logging.ERROR: ('<p style="color:red">', '</p>'),
             logging.CRITICAL: ('<p style="color:red">', '</p>'),
         }.get(levelno, ('', ''))

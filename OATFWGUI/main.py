@@ -197,7 +197,7 @@ class MainWindow(QMainWindow):
 def main():
     setup_environment()
     log.debug('Creating app')
-    app = QApplication(sys.argv)
+    app = QApplication()
 
     log.debug('Creating main window')
     widget = MainWindow()
