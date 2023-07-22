@@ -6,12 +6,13 @@ import html
 import tempfile
 from pathlib import Path
 from datetime import datetime
-from typing import Tuple, Optional
+from typing import Tuple, List, Optional
 
-from PySide6.QtCore import Slot, Signal, QObject, QFileSystemWatcher, QFile
+from PySide6.QtCore import Slot, Signal, QObject, QFileSystemWatcher, QFile, QMetaMethod
 
 from external_processes import get_install_dir
 from platform_check import get_platform, PlatformEnum
+from qt_extensions import get_signal
 
 
 class LogObject(QObject):
@@ -19,10 +20,20 @@ class LogObject(QObject):
 
     def __init__(self):
         super().__init__()
+        self.log_buf: List[str] = []
+        # Just so we don't call this on every log message
+        self.log_signal_meta: QMetaMethod = get_signal(self, 'log_signal')
 
-    def write(self, s):
-        # TODO: Could buffer if QMetaMethod.fromSignal worked?
-        self.log_signal.emit(s)
+    def write(self, s: str):
+        if not self.isSignalConnected(self.log_signal_meta):
+            # if we can't send a signal, just append to a local buffer
+            self.log_buf.append(s)
+        else:
+            # Dump and clear our saved buffer
+            for buffered_log in self.log_buf:
+                self.log_signal.emit(buffered_log)
+            self.log_buf.clear()
+            self.log_signal.emit(s)
 
 
 class LogColourTypes(enum.Enum):

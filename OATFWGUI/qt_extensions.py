@@ -5,7 +5,7 @@ import math
 import enum
 from typing import Optional, Tuple
 
-from PySide6.QtCore import Slot, Signal, QObject, QRunnable, Qt, QSize
+from PySide6.QtCore import Slot, Signal, QObject, QRunnable, Qt, QSize, QMetaMethod
 from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QSizePolicy
 from PySide6.QtGui import QPainter, QColor, QPen
 
@@ -151,3 +151,16 @@ class QIndicatorBad(QWidget):
                          on_circle_bot_half * bounding_size, on_circle_bot_half * bounding_size)
         painter.drawLine(on_circle_top_half * bounding_size, on_circle_bot_half * bounding_size,
                          on_circle_bot_half * bounding_size, on_circle_top_half * bounding_size)
+
+
+# https://stackoverflow.com/a/68621792/1313872
+# Idk why this is so hard for Qt
+def get_signal(o_object: QObject, str_signal_name: str) -> Optional[QMetaMethod]:
+    o_meta_obj = o_object.metaObject()
+    for i in range(o_meta_obj.methodCount()):
+        o_meta_method = o_meta_obj.method(i)
+        if not o_meta_method.isValid():
+            continue
+        if o_meta_method.methodType() == QMetaMethod.Signal and o_meta_method.name() == str_signal_name:
+            return o_meta_method
+    return None

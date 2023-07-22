@@ -81,7 +81,7 @@ class ExternalProcess:
             QProcess.Running: 'Running',
         }.get(state)
         self.state = state
-        log.info(f'{self.proc_name}:State changed: {state_name}')
+        log.debug(f'{self.proc_name}:State changed: {state_name}')
 
 
 # Global dict to be modified after we can verify the external process exists
