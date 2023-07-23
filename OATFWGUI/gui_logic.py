@@ -63,6 +63,12 @@ def download_fw(zip_url: str) -> Path:
 
 
 def extract_fw(zipfile_name: Path) -> Path:
+    # For Windows path length reasons, keep the firmware folder name short
+    fw_dir = Path(get_install_dir(), 'OATFW')
+    if fw_dir.exists():
+        log.info(f'Removing previously downloaded FW from {fw_dir}')
+        shutil.rmtree(fw_dir, ignore_errors=True)
+
     log.info(f'Extracting FW from {zipfile_name}')
     with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
         zip_infolist = zip_ref.infolist()
@@ -73,12 +79,7 @@ def extract_fw(zipfile_name: Path) -> Path:
             sys.exit(1)
         zip_ref.extractall()
 
-    # For Windows path length reasons, keep the downloaded firmware name short
-    fw_dir = Path(get_install_dir(), 'OATFW')
     log.info(f'Rename {extracted_dir} to {fw_dir}')
-    if fw_dir.exists():
-        log.info(f'Removing previously downloaded FW from {fw_dir}')
-        shutil.rmtree(fw_dir, ignore_errors=True)
     shutil.move(extracted_dir, fw_dir)
     log.info(f'Extracted FW to {fw_dir}')
     return fw_dir
