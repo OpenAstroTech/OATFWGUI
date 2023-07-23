@@ -54,6 +54,11 @@ def setup_environment():
 the {install_dir.resolve()} folder somewhere with less characters in the path.'''
         check_and_warn_directory_path_length(install_dir, 100, log_msg)
 
+    portable_git_dir = Path(install_dir, '.portable_git', 'bin')
+    if portable_git_dir.is_dir():
+        log.info(f'Adding portable git:{portable_git_dir} to PATH')
+        os.environ['PATH'] += os.pathsep + str(portable_git_dir)
+
     # Putting the platformio core directory in a temporary folder is only needed because
     # Windows doesn't support long path names... :/
     pio_core_dir = Path(tempfile.gettempdir(), f'.pioOATFWGUI{__version__}')

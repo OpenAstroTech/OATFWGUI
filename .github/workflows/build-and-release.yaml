@@ -44,6 +44,42 @@ jobs:
       working-directory: dist/.python_local
     - name: Install requirements
       run: dist/.python_local/python.exe -m pip install --requirement requirements.txt
+
+    - name: Download portable git
+      run: curl -L "https://github.com/git-for-windows/git/releases/download/v2.41.0.windows.3/PortableGit-2.41.0.3-64-bit.7z.exe" -o "PortableGit.7z"
+    - name: Extract PortableGit
+      run: 7z x PortableGit.7z -o./dist/.portable_git
+    - name: PortableGit before size
+      run: du -sh ./dist/.portable_git
+    - name: Prune unused PortableGit dirs
+      run: |
+        while read -r line; do
+          del_path="./dist/.portable_git/${line//$'\r'}" # Remove trailing carriage return
+          if [ -d "$del_path" ]; then
+            rm -rv "$del_path"
+          else
+            echo "Cannot find dir:$del_path"
+            ls -l "./dist/.portable_git"
+            ls -l "$del_path"
+            exit 1
+          fi
+        done < ./bundle_pruning/PortableGit_dirs.txt
+    - name: Prune unused PortableGit files
+      run: |
+        while read -r line; do
+          del_path="./dist/.portable_git/${line//$'\r'}" # Remove trailing carriage return
+          if [ -f "$del_path" ]; then
+            rm -v "$del_path"
+          else
+            echo "Cannot find file:$del_path"
+            ls -l "./dist/.portable_git"
+            ls -l "$del_path"
+            exit 1
+          fi
+        done < ./bundle_pruning/PortableGit_files.txt
+    - name: PortableGit after size
+      run: du -sh ./dist/.portable_git
+
     - name: Copy sourcecode into dist
       run: cp -rv OATFWGUI/ dist/
     - name: Copy bootstrap script into dist
