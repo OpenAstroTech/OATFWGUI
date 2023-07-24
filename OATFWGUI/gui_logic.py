@@ -8,6 +8,7 @@ from typing import List, Optional
 from pathlib import Path
 
 from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout, \
     QHBoxLayout, QCheckBox
 
@@ -396,13 +397,16 @@ class MainWidget(QWidget):
         self.logText = QPlainTextEdit()
         self.logText.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.logText.setReadOnly(True)
+        log_font = QFont('this-font-does-not-exist')
+        log_font.setStyleHint(QFont.Monospace)  # Let Qt pick a monospace font
+        self.logText.setFont(log_font)
 
         # layout
         self.g_layout = QGridLayout()
 
         layout_arr = [
-            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw,         self.wSpn_download],
-            [self.wMsg_pio_env,    self.wCombo_pio_env,    self.wBtn_select_local_config, self.wBtn_build_fw],
+            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, self.wSpn_download],
+            [self.wMsg_pio_env, self.wCombo_pio_env, self.wBtn_select_local_config, self.wBtn_build_fw],
             [self.wMsg_config_path, None, None, self.wSpn_build],
             [self.wBtn_refresh_ports, self.wCombo_serial_port, self.wBtn_upload_fw, self.wSpn_upload],
             [None, None, self.wChk_upload_stats, None],

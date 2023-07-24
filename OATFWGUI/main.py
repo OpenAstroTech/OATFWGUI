@@ -36,13 +36,11 @@ parser.add_argument('-v', '--version', action='version',
 def check_and_warn_directory_path_length(dir_to_check: Path, max_path_len: int, warn_str: str):
     num_chars_in_dir = len(str(dir_to_check))
     if num_chars_in_dir > max_path_len:
-        # Make it a big 'ol block warning
         general_warn_str = f'''Path {dir_to_check} might
 have too many characters in it ({num_chars_in_dir})! Downloading/building firmware may create files with path
 lengths greater than the default Windows path length of 260 characters.
 '''
-        for log_line in (general_warn_str + warn_str).split('\n'):
-            log.warning(log_line)
+        log.warning(general_warn_str + warn_str)
 
 
 def setup_environment():
@@ -235,9 +233,7 @@ def custom_excepthook(exc_type, exc_value, exc_tb):
     # Print the exception
     log.critical('Exception caught')
     exception_str = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
-    for line in exception_str.split('\n'):
-        if line:
-            log.critical(line)
+    log.critical(exception_str)
 
 
 def main():

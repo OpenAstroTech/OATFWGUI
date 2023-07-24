@@ -78,15 +78,18 @@ class CustomFormatter(logging.Formatter):
         return pre, post
 
     def format(self, record):
+        formatted_str = super().format(record).rstrip()
         if self.colour_type == LogColourTypes.terminal and get_platform() != PlatformEnum.WINDOWS:
             # only use terminal colors when not in windows, they don't work by default
             pre, post = self._colour_terminal(record.levelno)
-            log_str = pre + super().format(record) + post
+            log_str = pre + formatted_str + post
         elif self.colour_type == LogColourTypes.html:
             pre, post = self._colour_html(record.levelno)
-            log_str = pre + html.escape(super().format(record)) + post
+            escaped_str = html.escape(formatted_str)
+            htmlified_str = escaped_str.replace('\n', '<br>').replace(' ', '&nbsp;')
+            log_str = pre + htmlified_str + post
         else:
-            log_str = super().format(record)
+            log_str = formatted_str
         return log_str
 
 
