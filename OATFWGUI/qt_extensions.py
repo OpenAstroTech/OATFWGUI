@@ -37,10 +37,11 @@ class Worker(QRunnable):
     def run(self):
         try:
             result = self.fn(*self.args, **self.kwargs)
-        except:
-            traceback.print_exc()
+        except Exception as e:
+            # Catch the exception, send the error signal, then raise the exception for the excepthook
             exctype, value = sys.exc_info()[:2]
             self.signals.error.emit((exctype, value, traceback.format_exc()))
+            raise e
         else:
             self.signals.result.emit(result)
         finally:

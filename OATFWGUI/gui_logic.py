@@ -8,6 +8,7 @@ from typing import List, Optional
 from pathlib import Path
 
 from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout, \
     QHBoxLayout, QCheckBox
 
@@ -54,15 +55,21 @@ def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
 
 def download_fw(zip_url: str) -> Path:
     log.info(f'Downloading OAT FW from: {zip_url}')
-    resp = requests.get(zip_url)
+    r = requests.get(zip_url)
     zipfile_name = Path(get_install_dir(), 'OATFW.zip')
     with open(zipfile_name, 'wb') as fd:
-        fd.write(resp.content)
+        fd.write(r.content)
         fd.close()
     return zipfile_name
 
 
 def extract_fw(zipfile_name: Path) -> Path:
+    # For Windows path length reasons, keep the firmware folder name short
+    fw_dir = Path(get_install_dir(), 'OATFW')
+    if fw_dir.exists():
+        log.info(f'Removing previously downloaded FW from {fw_dir}')
+        shutil.rmtree(fw_dir, ignore_errors=True)
+
     log.info(f'Extracting FW from {zipfile_name}')
     with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
         zip_infolist = zip_ref.infolist()
@@ -73,12 +80,7 @@ def extract_fw(zipfile_name: Path) -> Path:
             sys.exit(1)
         zip_ref.extractall()
 
-    # For Windows path length reasons, keep the downloaded firmware name short
-    fw_dir = Path(get_install_dir(), 'OATFW')
     log.info(f'Rename {extracted_dir} to {fw_dir}')
-    if fw_dir.exists():
-        log.info(f'Removing previously downloaded FW from {fw_dir}')
-        shutil.rmtree(fw_dir, ignore_errors=True)
     shutil.move(extracted_dir, fw_dir)
     log.info(f'Extracted FW to {fw_dir}')
     return fw_dir
@@ -157,13 +159,20 @@ class BusinessLogic:
     def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
         log.info(f'Grabbing available FW versions from {fw_api_url}')
-        response = requests.get(fw_api_url, timeout=5000)
+        r = requests.get(fw_api_url, timeout=5000)
         releases_list = [
             FWVersion('develop',
                       'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/develop.zip'),
         ]
-        for release_json in response.json():
-            releases_list.append(FWVersion(release_json['name'], release_json['zipball_url']))
+        if r.status_code != requests.codes.ok:
+            log.error(f'Failed to grab latest FW versions: {r.status_code} {r.reason} {r.text}')
+        for release_json in r.json():
+            try:
+                fw_version = FWVersion(release_json['name'], release_json['zipball_url'])
+            except TypeError as e:
+                log.error(f'release_json={release_json}')
+                raise e
+            releases_list.append(fw_version)
 
         self.logic_state.release_list = releases_list
         return self.get_fw_versions.__name__
@@ -395,13 +404,16 @@ class MainWidget(QWidget):
         self.logText = QPlainTextEdit()
         self.logText.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.logText.setReadOnly(True)
+        log_font = QFont('this-font-does-not-exist')
+        log_font.setStyleHint(QFont.Monospace)  # Let Qt pick a monospace font
+        self.logText.setFont(log_font)
 
         # layout
         self.g_layout = QGridLayout()
 
         layout_arr = [
-            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw,         self.wSpn_download],
-            [self.wMsg_pio_env,    self.wCombo_pio_env,    self.wBtn_select_local_config, self.wBtn_build_fw],
+            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, self.wSpn_download],
+            [self.wMsg_pio_env, self.wCombo_pio_env, self.wBtn_select_local_config, self.wBtn_build_fw],
             [self.wMsg_config_path, None, None, self.wSpn_build],
             [self.wBtn_refresh_ports, self.wCombo_serial_port, self.wBtn_upload_fw, self.wSpn_upload],
             [None, None, self.wChk_upload_stats, None],

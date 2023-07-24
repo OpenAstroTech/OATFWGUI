@@ -8,6 +8,8 @@ import time
 import tempfile
 import requests
 import json
+import signal
+import traceback
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
@@ -34,13 +36,11 @@ parser.add_argument('-v', '--version', action='version',
 def check_and_warn_directory_path_length(dir_to_check: Path, max_path_len: int, warn_str: str):
     num_chars_in_dir = len(str(dir_to_check))
     if num_chars_in_dir > max_path_len:
-        # Make it a big 'ol block warning
         general_warn_str = f'''Path {dir_to_check} might
 have too many characters in it ({num_chars_in_dir})! Downloading/building firmware may create files with path
 lengths greater than the default Windows path length of 260 characters.
 '''
-        for log_line in (general_warn_str + warn_str).split('\n'):
-            log.warning(log_line)
+        log.warning(general_warn_str + warn_str)
 
 
 def setup_environment():
@@ -105,14 +105,14 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
 
     oatfwgui_api_url = 'https://api.github.com/repos/OpenAstroTech/OATFWGUI/releases'
     log.info(f'Checking for new OATFWGUI release from {oatfwgui_api_url}')
-    response = requests.get(oatfwgui_api_url, timeout=2000)
-    if response.status_code != requests.codes.ok:
-        log.error(f'Failed to check for new release: {response.status_code} {response.reason} {response.text}')
+    r = requests.get(oatfwgui_api_url, timeout=2000)
+    if r.status_code != requests.codes.ok:
+        log.error(f'Failed to check for new release: {r.status_code} {r.reason} {r.text}')
         return None
 
     releases: Dict[semver.VersionInfo, str] = {}
     latest_release_ver: Optional[semver.VersionInfo] = None
-    for release_json in response.json():
+    for release_json in r.json():
         try:
             release_ver = semver.VersionInfo.parse(release_json['tag_name'])
         except ValueError as e:
@@ -123,7 +123,7 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
             latest_release_ver = release_ver
 
     if latest_release_ver is None:
-        log.debug(f'No latest release? {response.json()}')
+        log.debug(f'No latest release? {r.json()}')
         return None
 
     # need to 'finalize' the version, as we use the prerelease/build fields to indicate a release version
@@ -158,7 +158,7 @@ class MainWindow(QMainWindow):
         self.add_log_menu_helper('error', self.log_error)
 
         self.exit_action = QAction('Exit')
-        self.exit_action.triggered.connect(self.exit)
+        self.exit_action.triggered.connect(exit_handler)
         self.file_menu.addAction(self.exit_action)
 
         self.status_bar = QStatusBar()
@@ -217,9 +217,26 @@ class MainWindow(QMainWindow):
     def log_error(self):
         self.set_gui_log_level(logging.ERROR)
 
-    @Slot()
-    def exit(self):
-        sys.exit(0)
+
+def exit_handler(*args):
+    # Stop the Qt event loop
+    QApplication.quit()
+
+
+def custom_excepthook(exc_type, exc_value, exc_tb):
+    # Flush all logs
+    for logger in logging.root.manager.loggerDict.values():
+        if isinstance(logger, logging.PlaceHolder):
+            continue  # not sure what a placeholder logger is
+        for handler in logger.handlers:
+            handler.flush()
+    # Print the exception
+    log.critical('Exception caught')
+    exception_str = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    log.critical(exception_str)
+    log.critical(f"""
+This is a bug! Please click the 'Report a bug' button in the bottom right of the window
+and attach the latest log file from the 'logs' directory ({str(Path(get_install_dir(), 'logs'))})""")
 
 
 def main():
@@ -246,6 +263,12 @@ def main():
 
 
 if __name__ == '__main__':
+    # Register a custom exception handler (so that logs can be flushed)
+    sys.excepthook = custom_excepthook
+    # Register exit handlers to catch ctrl+c
+    signal.signal(signal.SIGINT, exit_handler)
+    signal.signal(signal.SIGTERM, exit_handler)
+
     args = parser.parse_args()
     log = logging.getLogger('')
     l_o = LogObject()
