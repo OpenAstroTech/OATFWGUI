@@ -55,10 +55,10 @@ def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
 
 def download_fw(zip_url: str) -> Path:
     log.info(f'Downloading OAT FW from: {zip_url}')
-    resp = requests.get(zip_url)
+    r = requests.get(zip_url)
     zipfile_name = Path(get_install_dir(), 'OATFW.zip')
     with open(zipfile_name, 'wb') as fd:
-        fd.write(resp.content)
+        fd.write(r.content)
         fd.close()
     return zipfile_name
 
@@ -159,13 +159,20 @@ class BusinessLogic:
     def get_fw_versions(self) -> str:
         fw_api_url = 'https://api.github.com/repos/OpenAstroTech/OpenAstroTracker-Firmware/releases'
         log.info(f'Grabbing available FW versions from {fw_api_url}')
-        response = requests.get(fw_api_url, timeout=5000)
+        r = requests.get(fw_api_url, timeout=5000)
         releases_list = [
             FWVersion('develop',
                       'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/develop.zip'),
         ]
-        for release_json in response.json():
-            releases_list.append(FWVersion(release_json['name'], release_json['zipball_url']))
+        if r.status_code != requests.codes.ok:
+            log.error(f'Failed to grab latest FW versions: {r.status_code} {r.reason} {r.text}')
+        for release_json in r.json():
+            try:
+                fw_version = FWVersion(release_json['name'], release_json['zipball_url'])
+            except TypeError as e:
+                log.error(f'release_json={release_json}')
+                raise e
+            releases_list.append(fw_version)
 
         self.logic_state.release_list = releases_list
         return self.get_fw_versions.__name__

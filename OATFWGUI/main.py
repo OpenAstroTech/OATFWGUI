@@ -105,14 +105,14 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
 
     oatfwgui_api_url = 'https://api.github.com/repos/OpenAstroTech/OATFWGUI/releases'
     log.info(f'Checking for new OATFWGUI release from {oatfwgui_api_url}')
-    response = requests.get(oatfwgui_api_url, timeout=2000)
-    if response.status_code != requests.codes.ok:
-        log.error(f'Failed to check for new release: {response.status_code} {response.reason} {response.text}')
+    r = requests.get(oatfwgui_api_url, timeout=2000)
+    if r.status_code != requests.codes.ok:
+        log.error(f'Failed to check for new release: {r.status_code} {r.reason} {r.text}')
         return None
 
     releases: Dict[semver.VersionInfo, str] = {}
     latest_release_ver: Optional[semver.VersionInfo] = None
-    for release_json in response.json():
+    for release_json in r.json():
         try:
             release_ver = semver.VersionInfo.parse(release_json['tag_name'])
         except ValueError as e:
@@ -123,7 +123,7 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
             latest_release_ver = release_ver
 
     if latest_release_ver is None:
-        log.debug(f'No latest release? {response.json()}')
+        log.debug(f'No latest release? {r.json()}')
         return None
 
     # need to 'finalize' the version, as we use the prerelease/build fields to indicate a release version
