@@ -234,6 +234,9 @@ def custom_excepthook(exc_type, exc_value, exc_tb):
     log.critical('Exception caught')
     exception_str = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
     log.critical(exception_str)
+    log.critical(f"""
+This is a bug! Please click the 'Report a bug' button in the bottom right of the window
+and attach the latest log file from the 'logs' directory ({str(Path(get_install_dir(), 'logs'))})""")
 
 
 def main():
