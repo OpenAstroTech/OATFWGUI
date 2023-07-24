@@ -8,6 +8,8 @@ import time
 import tempfile
 import requests
 import json
+import signal
+import traceback
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
@@ -158,7 +160,7 @@ class MainWindow(QMainWindow):
         self.add_log_menu_helper('error', self.log_error)
 
         self.exit_action = QAction('Exit')
-        self.exit_action.triggered.connect(self.exit)
+        self.exit_action.triggered.connect(exit_handler)
         self.file_menu.addAction(self.exit_action)
 
         self.status_bar = QStatusBar()
@@ -217,9 +219,25 @@ class MainWindow(QMainWindow):
     def log_error(self):
         self.set_gui_log_level(logging.ERROR)
 
-    @Slot()
-    def exit(self):
-        sys.exit(0)
+
+def exit_handler(*args):
+    # Stop the Qt event loop
+    QApplication.quit()
+
+
+def custom_excepthook(exc_type, exc_value, exc_tb):
+    # Flush all logs
+    for logger in logging.root.manager.loggerDict.values():
+        if isinstance(logger, logging.PlaceHolder):
+            continue  # not sure what a placeholder logger is
+        for handler in logger.handlers:
+            handler.flush()
+    # Print the exception
+    log.critical('Exception caught')
+    exception_str = ''.join(traceback.format_exception(exc_type, exc_value, exc_tb))
+    for line in exception_str.split('\n'):
+        if line:
+            log.critical(line)
 
 
 def main():
@@ -246,6 +264,12 @@ def main():
 
 
 if __name__ == '__main__':
+    # Register a custom exception handler (so that logs can be flushed)
+    sys.excepthook = custom_excepthook
+    # Register exit handlers to catch ctrl+c
+    signal.signal(signal.SIGINT, exit_handler)
+    signal.signal(signal.SIGTERM, exit_handler)
+
     args = parser.parse_args()
     log = logging.getLogger('')
     l_o = LogObject()
