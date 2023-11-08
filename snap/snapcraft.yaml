@@ -1,0 +1,64 @@
+name: oatfwgui
+base: core22
+adopt-info: oatfwgui
+summary: TODO
+description: |
+  TODO
+website: https://github.com/OpenAstroTech/OATFWGUI
+source-code: https://github.com/OpenAstroTech/OATFWGUI
+
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on:
+    - amd64
+#    - armhf
+#    - arm64
+
+lint:
+  ignore:
+    - library
+
+parts:
+  oatfwgui:
+    plugin: python
+    source: .
+#    stage-packages:
+#      - libglib2.0-0
+#      - libxkbcommon0
+#      - libfontconfig1
+#      - libgl1
+#      - libegl1
+#      - qt6-wayland
+#      - python3-pyqt6.sip
+    override-build: |
+      craftctl default
+      
+      python -m venv .venv_set_version
+      .venv_set_version/bin/pip install --requirement ./scripts/requirements_version.txt
+      
+      rm -rv $CRAFT_PRIME/* || true
+      cp -rv OATFWGUI/ $CRAFT_PRIME/
+      
+      .venv_set_version/bin/python ./scripts/set_version.py --file $CRAFT_PRIME/OATFWGUI/_version.py release
+      
+      python3 -m pip install -r ./requirements.txt
+      
+      apt-get install -y libglib2.0-0 libxkbcommon0 libfontconfig1 libgl1 libegl1 qt6-wayland python3-pyqt6.sip
+      craftctl set version=$(python3 $CRAFT_PRIME/OATFWGUI/main.py --version | tail -n1)
+
+apps:
+  oatfwgui:
+    plugs:
+      - home
+      - removable-media
+#      - x11
+#      - wayland
+#      - desktop
+    extensions:
+      - kde-neon
+    environment:
+      LD_LIBRARY_PATH: $LD_LIBRARY_PATH:$SNAP/usr/lib
+      QT_QPA_PLATFORM: xcb
+    command: bin/python3 OATFWGUI/main.py
