@@ -4,6 +4,8 @@ import sys
 import zipfile
 import json
 import shutil
+import os
+import stat
 from typing import List, Optional
 from pathlib import Path
 
@@ -64,11 +66,17 @@ def download_fw(zip_url: str) -> Path:
 
 
 def extract_fw(zipfile_name: Path) -> Path:
+    def remove_readonly(func, path, excinfo):
+        # Windows has a problem with deleting some git files
+        log.debug(f'Problem removing {path}, attempting to make writable')
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+
     # For Windows path length reasons, keep the firmware folder name short
     fw_dir = Path(get_install_dir(), 'OATFW')
     if fw_dir.exists():
         log.info(f'Removing previously downloaded FW from {fw_dir}')
-        shutil.rmtree(fw_dir, ignore_errors=True)
+        shutil.rmtree(fw_dir, onerror=remove_readonly)
 
     log.info(f'Extracting FW from {zipfile_name}')
     with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
@@ -228,7 +236,7 @@ class BusinessLogic:
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
 
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
-        if config_dest_path != self.logic_state.config_file_path:
+        if Path(config_dest_path) != Path(self.logic_state.config_file_path):
             if QFile.exists(config_dest_path):
                 log.warning(f'Deleting existing configuration file {config_dest_path}')
                 QFile.remove(config_dest_path)
