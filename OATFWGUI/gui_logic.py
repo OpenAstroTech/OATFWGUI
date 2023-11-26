@@ -236,7 +236,7 @@ class BusinessLogic:
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
 
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
-        if config_dest_path != self.logic_state.config_file_path:
+        if Path(config_dest_path) != Path(self.logic_state.config_file_path):
             if QFile.exists(config_dest_path):
                 log.warning(f'Deleting existing configuration file {config_dest_path}')
                 QFile.remove(config_dest_path)
