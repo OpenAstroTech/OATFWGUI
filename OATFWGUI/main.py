@@ -24,6 +24,7 @@ from gui_logic import MainWidget
 from platform_check import get_platform, PlatformEnum
 from external_processes import external_processes, add_external_process, get_install_dir
 from anon_usage_data import create_anon_stats
+from misc_utils import delete_directory
 
 parser = argparse.ArgumentParser(usage='Graphical way to build and load OAT Firmware')
 parser.add_argument('--no-gui', action='store_true',
@@ -61,9 +62,20 @@ the {install_dir.resolve()} folder somewhere with less characters in the path.''
 
     # Putting the platformio core directory in a temporary folder is only needed because
     # Windows doesn't support long path names... :/
-    pio_core_dir = Path(tempfile.gettempdir(), f'.pioOATFWGUI{__version__}')
+    tempdir_path = Path(tempfile.gettempdir())
+    pio_prefix_str = '.pioOATFWGUI'
+    pio_core_dir = Path(tempdir_path, f'{pio_prefix_str}{__version__}')
     log.info(f'Setting PLATFORMIO_CORE_DIR to {pio_core_dir}')
     os.environ['PLATFORMIO_CORE_DIR'] = str(pio_core_dir)
+
+    log.debug('Checking for previous OATFWGUI pio core installs...')
+    for temp_path in tempdir_path.iterdir():
+        is_dir = temp_path.is_dir()
+        is_oatfwgui_core_dir = pio_prefix_str in temp_path.name
+        not_current_core_dir = temp_path.name != pio_core_dir
+        if is_dir and is_oatfwgui_core_dir and not_current_core_dir:
+            log.info(f'Removing other pio core directory:{temp_path.name}')
+            delete_directory(temp_path)
 
     python_interpreter_path = Path(sys.executable)
     log.debug(f'Python interpreter: {python_interpreter_path}')

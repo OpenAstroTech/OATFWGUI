@@ -4,8 +4,6 @@ import sys
 import zipfile
 import json
 import shutil
-import os
-import stat
 from typing import List, Optional
 from pathlib import Path
 
@@ -21,6 +19,7 @@ from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
 from external_processes import external_processes, get_install_dir
 from gui_state import LogicState, PioEnv, FWVersion
 from anon_usage_data import AnonStatsDialog, create_anon_stats, upload_anon_stats
+from misc_utils import delete_directory
 
 log = logging.getLogger('')
 
@@ -66,17 +65,11 @@ def download_fw(zip_url: str) -> Path:
 
 
 def extract_fw(zipfile_name: Path) -> Path:
-    def remove_readonly(func, path, excinfo):
-        # Windows has a problem with deleting some git files
-        log.debug(f'Problem removing {path}, attempting to make writable')
-        os.chmod(path, stat.S_IWRITE)
-        func(path)
-
     # For Windows path length reasons, keep the firmware folder name short
     fw_dir = Path(get_install_dir(), 'OATFW')
     if fw_dir.exists():
         log.info(f'Removing previously downloaded FW from {fw_dir}')
-        shutil.rmtree(fw_dir, onerror=remove_readonly)
+        delete_directory(fw_dir)
 
     log.info(f'Extracting FW from {zipfile_name}')
     with zipfile.ZipFile(zipfile_name, 'r') as zip_ref:
