@@ -15,7 +15,8 @@ from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButt
 import requests
 
 from log_utils import LogObject, LoggedExternalFile
-from qt_extensions import Worker, QBusyIndicatorGoodBad, BusyIndicatorState
+from qt_extensions import Worker
+from qbusyindicatorgoodbad import QBusyIndicatorGoodBad, BusyIndicatorState
 from external_processes import external_processes, get_install_dir
 from gui_state import LogicState, PioEnv, FWVersion
 from anon_usage_data import AnonStatsDialog, create_anon_stats, upload_anon_stats
