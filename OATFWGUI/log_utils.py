@@ -13,6 +13,7 @@ from PySide6.QtCore import Slot, Signal, QObject, QFileSystemWatcher, QFile, QMe
 from external_processes import get_install_dir
 from platform_check import get_platform, PlatformEnum
 from qt_extensions import get_signal
+from qwarningbannerholder import global_warning_banners
 
 
 class LogObject(QObject):
@@ -110,6 +111,7 @@ class LoggedExternalFile:
         watch_success = self.file_watcher.addPath(self.tempfile.name)
         if not watch_success:
             self.log.warning(f'Could not watch external file: {self.tempfile.name}')
+            global_warning_banners.add(f'Could not watch external file: {self.tempfile.name}')
             return None
         return self.tempfile.name
 
