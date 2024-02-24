@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 
 from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QMetaMethod
+from PySide6.QtWidgets import QWidget
 
 log = logging.getLogger('')
 
@@ -40,6 +41,35 @@ class Worker(QRunnable):
             self.signals.result.emit(result)
         finally:
             self.signals.finished.emit()
+
+
+class RegisteredCustomWidget(QWidget):
+    """
+    See https://doc.qt.io/qt-6/designer-ui-file-format.html for the XML format (it's kind of hard to read tho :/)
+    Also see https://doc.qt.io/qt-6/designer-creating-custom-widgets.html
+    """
+    designer_tooltip = ''
+    designer_dom_xml = ''
+
+    @classmethod
+    def factory(cls: 'RegisteredCustomWidget'):
+        if not cls.designer_tooltip:
+            cls.designer_tooltip = f'{cls.__name__} tooltip'
+        if cls.designer_dom_xml:
+            cls.designer_dom_xml = f'''
+<ui language='c++'>
+    <widget class='{cls.__name__}' name='{cls.__name__.lower()}'>
+    </widget>
+</ui>
+'''
+
+        cls.designer_module = cls.__name__.lower()
+
+        return cls
+
+    def running_in_designer(self):
+        # TODO: This is specific to the .ui file, is there a cleaner way to make it generic?
+        return self.window().objectName() != 'TopLevelWidget'
 
 
 # https://stackoverflow.com/a/68621792/1313872

@@ -7,16 +7,14 @@ import shutil
 from typing import List, Optional
 from pathlib import Path
 
-from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess, Qt
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QLabel, QComboBox, QWidget, QFileDialog, QPushButton, QPlainTextEdit, QGridLayout, \
-    QHBoxLayout, QCheckBox
+from PySide6.QtCore import Slot, QThreadPool, QFile, QProcess
+from PySide6.QtWidgets import QWidget, QFileDialog
 
 import requests
 
-from log_utils import LogObject, LoggedExternalFile
+from log_utils import LoggedExternalFile
 from qt_extensions import Worker
-from qbusyindicatorgoodbad import QBusyIndicatorGoodBad, BusyIndicatorState
+from qbusyindicatorgoodbad import BusyIndicatorState
 from external_processes import external_processes, get_install_dir
 from gui_state import LogicState, PioEnv, FWVersion
 from anon_usage_data import AnonStatsDialog, create_anon_stats, upload_anon_stats
@@ -89,7 +87,7 @@ def extract_fw(zipfile_name: Path) -> Path:
 
 
 class BusinessLogic:
-    def __init__(self, main_app: 'MainWidget'):
+    def __init__(self, main_app: QWidget):
         self.logic_state = LogicState()
 
         self.main_app = main_app
@@ -369,76 +367,3 @@ class BusinessLogic:
     def modal_show_stats(self):
         dlg = AnonStatsDialog(self.logic_state, self.main_app)
         dlg.exec_()
-
-
-class MainWidget(QWidget):
-    def __init__(self, log_object: LogObject):
-        QWidget.__init__(self)
-
-        # widgets
-        self.wMsg_fw_version = QLabel('Select firmware version:')
-        self.wCombo_fw_version = QComboBox()
-        self.wCombo_fw_version.setPlaceholderText('Grabbing FW Versions...')
-        self.wBtn_download_fw = QPushButton('Download')
-        self.wBtn_download_fw.setEnabled(False)
-        self.wSpn_download = QBusyIndicatorGoodBad(fixed_size=(50, 50))
-
-        self.wMsg_pio_env = QLabel('Select board:')
-        self.wCombo_pio_env = QComboBox()
-        self.wCombo_pio_env.setPlaceholderText('No FW downloaded yet...')
-        self.wBtn_select_local_config = QPushButton('Select local config file')
-        self.wBtn_build_fw = QPushButton('Build FW')
-        self.wBtn_build_fw.setEnabled(False)
-        self.wMsg_config_path = QLabel('No config file selected')
-        self.wSpn_build = QBusyIndicatorGoodBad(fixed_size=(50, 50))
-
-        self.wBtn_refresh_ports = QPushButton('Refresh ports')
-        self.wCombo_serial_port = QComboBox()
-        self.wCombo_serial_port.setPlaceholderText('No port selected')
-        self.wBtn_upload_fw = QPushButton('Upload FW')
-        self.wBtn_upload_fw.setEnabled(False)
-        self.wSpn_upload = QBusyIndicatorGoodBad(fixed_size=(50, 50))
-
-        self.wChk_upload_stats = QCheckBox('Upload anonymous statistics?',
-                                           toolTip='After a successful firmware update, upload anonymous firmware details to the OAT devs')
-        self.wBtn_what_stats = QPushButton('What will be uploaded?')
-
-        self.logText = QPlainTextEdit()
-        self.logText.setLineWrapMode(QPlainTextEdit.NoWrap)
-        self.logText.setReadOnly(True)
-        log_font = QFont('this-font-does-not-exist')
-        log_font.setStyleHint(QFont.Monospace)  # Let Qt pick a monospace font
-        self.logText.setFont(log_font)
-
-        # layout
-        self.g_layout = QGridLayout()
-
-        layout_arr = [
-            [self.wMsg_fw_version, self.wCombo_fw_version, self.wBtn_download_fw, self.wSpn_download],
-            [self.wMsg_pio_env, self.wCombo_pio_env, self.wBtn_select_local_config, self.wBtn_build_fw],
-            [self.wMsg_config_path, None, None, self.wSpn_build],
-            [self.wBtn_refresh_ports, self.wCombo_serial_port, self.wBtn_upload_fw, self.wSpn_upload],
-            [None, None, self.wChk_upload_stats, None],
-            [None, None, self.wBtn_what_stats, None],
-        ]
-        for y, row_arr in enumerate(layout_arr):
-            for x, widget in enumerate(row_arr):
-                rowSpan = 1
-                colSpan = 1
-                while x + colSpan < len(row_arr) and row_arr[x + colSpan] is None:
-                    # next widget is None, expand column
-                    colSpan += 1
-                if widget is not None:
-                    self.g_layout.addWidget(widget, y, x, rowSpan, colSpan)
-        self.g_layout.setAlignment(Qt.AlignTop)
-
-        # log window will take up the entire right side
-        self.h_layout = QHBoxLayout(self)
-        self.h_layout.addLayout(self.g_layout)
-        self.h_layout.addWidget(self.logText)
-
-        # signals
-        log_object.log_signal.connect(self.logText.appendHtml)
-
-        # business logic will connect signals as well
-        self.logic = BusinessLogic(self)

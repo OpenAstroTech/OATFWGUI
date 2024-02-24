@@ -39,3 +39,12 @@ $ python3 -m venv .venv # Create a virtual environment in .venv
 $ ./.venv/bin/pip install -r requirements.txt # Install requirements
 $ source .venv/bin/activate && ./OATFWGUI/main.py # Run the app
 ```
+
+To run the widget designer you need python development libraries:
+- Fedora: `sudo dnf install python3-devel`
+- Ubuntu (probably, not tested): `sudo apt install python3-dev`
+
+- then:
+`source .venv/bin/activate && env PYSIDE_DESIGNER_PLUGINS=$(realpath ./OATFWGUI) pyside6-designer`
+
+Open `main_widget.ui` in the designer

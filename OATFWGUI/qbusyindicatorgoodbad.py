@@ -1,26 +1,51 @@
 import math
 import enum
 import logging
-from typing import Optional, Tuple
 
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QSizePolicy
 from PySide6.QtGui import QPainter, QColor, QPen
 
 from waitingspinnerwidget import QtWaitingSpinner
+from qt_extensions import RegisteredCustomWidget
 
 log = logging.getLogger('')
 
 
 class BusyIndicatorState(enum.Enum):
+    # designer_dom_xml = '''
+    # <ui language='c++'>
+    #     <widget class='QBusyIndicatorGoodBad' name='qBusyIndicatorGoodBad'>
+    #         <property name='fixed_size'>
+    #             <size>
+    #                 <width>10</width>
+    #                 <height>10</height>
+    #             </size>
+    #         </property>
+    #     </widget>
+    # </ui>
+    # '''
+    #
+    # def get_fixed_size(self) -> QSize:
+    #     return self._fixed_size
+    #
+    # def set_fixed_size(self, fixed_size: QSize):
+    #     self._fixed_size = fixed_size
+    #     self.setFixedSize(fixed_size)
+    #
+    # fixed_size = Property(QSize, get_fixed_size, set_fixed_size)
+    #
+    # ...
+    #
+    # self._fixed_size = QSize(200, 200)
     NONE = enum.auto()
     BUSY = enum.auto()
     GOOD = enum.auto()
     BAD = enum.auto()
 
 
-class QBusyIndicatorGoodBad(QWidget):
-    def __init__(self, parent=None, fixed_size: Optional[Tuple[int, int]] = None):
+class QBusyIndicatorGoodBad(RegisteredCustomWidget):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.wSpn = QtWaitingSpinner(self, centerOnParent=False)
         self.wGood = QIndicatorGood(self)
@@ -40,13 +65,15 @@ class QBusyIndicatorGoodBad(QWidget):
         self.setWindowModality(Qt.NonModal)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
-        if fixed_size is None:
-            fixed_size = (50, 50)
-        self.setFixedSize(QSize(*fixed_size))
+        self.setFixedSize(QSize(50, 50))
+
         self.size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.setSizePolicy(self.size_policy)
+        if self.running_in_designer():
+            self.setState(BusyIndicatorState.BUSY)
+        else:
+            self.setState(BusyIndicatorState.NONE)
 
-        self.setState(BusyIndicatorState.NONE)
         self.setAttribute(Qt.WA_DontShowOnScreen)
         self.show()
 
