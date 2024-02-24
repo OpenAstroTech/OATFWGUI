@@ -87,11 +87,9 @@ jobs:
     - name: Prune unused windows files
       run: |
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/lupdate.exe
-        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Designer*
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Quick*
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Qml*
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Sql*
-        rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*Xml*
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/Qt*DBus*
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/linguist.exe
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/designer.exe
