@@ -14,13 +14,14 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 import semver
-from PySide6.QtCore import Slot, Qt
+from PySide6.QtCore import Slot, Qt, QFile
 from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar, QLabel
 from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtUiTools import QUiLoader
 
 from _version import __version__
 from log_utils import LogObject, setup_logging
-from gui_logic import MainWidget
+from gui_logic import BusinessLogic
 from platform_check import get_platform, PlatformEnum
 from external_processes import external_processes, add_external_process, get_install_dir
 from anon_usage_data import create_anon_stats
@@ -191,9 +192,23 @@ class MainWindow(QMainWindow):
         self.bug_hyperlink.setOpenExternalLinks(True)
         self.status_bar.addPermanentWidget(self.bug_hyperlink)  # addPermanentWidget == right side
 
-        log.debug('Creating main widget')
-        self.main_widget = MainWidget(l_o)
+        # Load the main widget from the .ui file
+        # Need to tell the UI loader where our custom widgets are
+        os.environ['PYSIDE_DESIGNER_PLUGINS'] = str(Path(get_install_dir(), 'OATFWGUI'))
+
+        main_widget_ui_path = Path(get_install_dir(), 'OATFWGUI', 'main_widget.ui')
+        log.debug(f'Loading main widget UI from {main_widget_ui_path}')
+        ui_file = QFile(main_widget_ui_path)
+        ui_file.open(QFile.ReadOnly)
+        loader = QUiLoader()
+        self.main_widget = loader.load(ui_file)
+        ui_file.close()
         self.setCentralWidget(self.main_widget)
+
+        # signals
+        l_o.log_signal.connect(self.main_widget.logText.appendHtml)
+        # business logic will connect signals as well
+        self.logic = BusinessLogic(self.main_widget)
 
     def add_log_menu_helper(self, name: str, cb_fn, is_checked=False):
         action = QAction(name)
@@ -266,7 +281,7 @@ def main():
     else:
         log.debug('NOT executing app')
         log.debug('Testing anonymous statistics creation')
-        anon_stats = create_anon_stats(widget.main_widget.logic.logic_state)
+        anon_stats = create_anon_stats(widget.logic.logic_state)
         log.debug(f'Statistics: {json.dumps(anon_stats)}')
         # Wait a bit before exiting, prevents Qt complaining about deleted objects
         time.sleep(1.0)

@@ -1,15 +1,10 @@
 import sys
 import traceback
 import logging
-import math
-import enum
-from typing import Optional, Tuple
+from typing import Optional
 
-from PySide6.QtCore import Slot, Signal, QObject, QRunnable, Qt, QSize, QMetaMethod
-from PySide6.QtWidgets import QWidget, QStackedWidget, QHBoxLayout, QSizePolicy
-from PySide6.QtGui import QPainter, QColor, QPen
-
-from waitingspinnerwidget import QtWaitingSpinner
+from PySide6.QtCore import Slot, Signal, QObject, QRunnable, QMetaMethod
+from PySide6.QtWidgets import QWidget
 
 log = logging.getLogger('')
 
@@ -48,110 +43,33 @@ class Worker(QRunnable):
             self.signals.finished.emit()
 
 
-class BusyIndicatorState(enum.Enum):
-    NONE = enum.auto()
-    BUSY = enum.auto()
-    GOOD = enum.auto()
-    BAD = enum.auto()
+class RegisteredCustomWidget(QWidget):
+    """
+    See https://doc.qt.io/qt-6/designer-ui-file-format.html for the XML format (it's kind of hard to read tho :/)
+    Also see https://doc.qt.io/qt-6/designer-creating-custom-widgets.html
+    """
+    designer_tooltip = ''
+    designer_dom_xml = ''
 
+    @classmethod
+    def factory(cls: 'RegisteredCustomWidget'):
+        if not cls.designer_tooltip:
+            cls.designer_tooltip = f'{cls.__name__} tooltip'
+        if cls.designer_dom_xml:
+            cls.designer_dom_xml = f'''
+<ui language='c++'>
+    <widget class='{cls.__name__}' name='{cls.__name__.lower()}'>
+    </widget>
+</ui>
+'''
 
-class QBusyIndicatorGoodBad(QWidget):
-    def __init__(self, fixed_size: Optional[Tuple[int, int]] = None):
-        super().__init__()
-        self.wSpn = QtWaitingSpinner(self, centerOnParent=False)
-        self.wGood = QIndicatorGood(self)
-        self.wBad = QIndicatorBad(self)
+        cls.designer_module = cls.__name__.lower()
 
-        self.wStacked = QStackedWidget()
-        self.wStacked.addWidget(self.wSpn)
-        self.wStacked.addWidget(self.wGood)
-        self.wStacked.addWidget(self.wBad)
-        self.wSpn.start()
+        return cls
 
-        self.hbox = QHBoxLayout(self)
-        self.hbox.addWidget(self.wStacked)
-        self.hbox.setAlignment(Qt.AlignCenter)
-        self.setLayout(self.hbox)
-
-        self.setWindowModality(Qt.NonModal)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-
-        if fixed_size is not None:
-            self.setFixedSize(QSize(*fixed_size))
-        self.size_policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
-        self.setSizePolicy(self.size_policy)
-
-        self.setState(BusyIndicatorState.NONE)
-        self.setAttribute(Qt.WA_DontShowOnScreen)
-        self.show()
-
-    def setState(self, state: BusyIndicatorState):
-        if state == BusyIndicatorState.NONE:
-            self.wStacked.hide()
-        elif state == BusyIndicatorState.BUSY:
-            self.wStacked.setCurrentWidget(self.wSpn)
-            self.wStacked.show()
-            self.wSpn.update()
-        elif state == BusyIndicatorState.GOOD:
-            self.wStacked.setCurrentWidget(self.wGood)
-            self.wStacked.show()
-        elif state == BusyIndicatorState.BAD:
-            self.wStacked.setCurrentWidget(self.wBad)
-            self.wStacked.show()
-        else:
-            log.error(f'Invalid busy indicator state {state}')
-
-
-class QIndicatorGood(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setWindowModality(Qt.NonModal)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-
-    def paintEvent(self, QPaintEvent):
-        painter = QPainter(self)
-        max_width = painter.device().width()
-        max_height = painter.device().height()
-        bounding_size = min(max_width, max_height)
-        pen = QPen()
-        pen.setWidth(0.05 * bounding_size)
-        pen.setColor(QColor('green'))
-        painter.setPen(pen)
-
-        painter.drawEllipse(0, 0,
-                            bounding_size, bounding_size)
-        bottom_point = (0.5 * bounding_size, 0.9 * bounding_size)
-        painter.drawLine(0.2 * bounding_size, 0.6 * bounding_size,
-                         *bottom_point)
-        painter.drawLine(*bottom_point,
-                         0.8 * bounding_size, 0.2 * bounding_size)
-
-
-class QIndicatorBad(QWidget):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setWindowModality(Qt.NonModal)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-
-    def paintEvent(self, QPaintEvent):
-        painter = QPainter(self)
-        max_width = painter.device().width()
-        max_height = painter.device().height()
-        bounding_size = min(max_width, max_height)
-        pen = QPen()
-        pen.setWidth(0.05 * bounding_size)
-        pen.setColor(QColor('red'))
-        painter.setPen(pen)
-
-        painter.drawEllipse(0, 0,
-                            bounding_size, bounding_size)
-        circle_width_fudge = 0.00001 * bounding_size  # move the lines into the circle's width just a little
-        on_circle_top_half = (0.5 * math.cos(math.pi * 3 / 4) + 0.5) + circle_width_fudge
-        on_circle_bot_half = (0.5 * math.cos(math.pi * 1 / 4) + 0.5) - circle_width_fudge
-        painter.drawLine(on_circle_top_half * bounding_size, on_circle_top_half * bounding_size,
-                         on_circle_bot_half * bounding_size, on_circle_bot_half * bounding_size)
-        painter.drawLine(on_circle_top_half * bounding_size, on_circle_bot_half * bounding_size,
-                         on_circle_bot_half * bounding_size, on_circle_top_half * bounding_size)
+    def running_in_designer(self):
+        # TODO: This is specific to the .ui file, is there a cleaner way to make it generic?
+        return self.window().objectName() != 'TopLevelWidget'
 
 
 # https://stackoverflow.com/a/68621792/1313872
