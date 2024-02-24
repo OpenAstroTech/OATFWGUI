@@ -2,7 +2,6 @@ import logging
 from typing import NamedTuple, List, Optional
 from pathlib import Path
 
-
 log = logging.getLogger('')
 
 
@@ -30,3 +29,13 @@ class LogicState:
     def __setattr__(self, key, val):
         log.debug(f'LogicState updated: {key} {getattr(self, key)} -> {val}')
         super().__setattr__(key, val)
+
+    def env_is_avr_based(self):
+        # For stupid hot patches that only affect AVR based boards :/
+        env_not_none = self.pio_env is not None
+
+        is_avr_based = env_not_none and any(
+            avr_env_substr in self.pio_env.lower()
+            for avr_env_substr in ['mksgenl', 'ramps']
+        )
+        return is_avr_based
