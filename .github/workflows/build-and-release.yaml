@@ -97,8 +97,8 @@ jobs:
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/designer.exe
         rm -v ./dist/.python_local/Lib/site-packages/PySide6/qmllint.exe
         rm -rv ./dist/.python_local/Lib/site-packages/PySide6/translations
-        rm -rv ./dist/.python_local/Lib/site-packages/PySide6/examples
         rm -rv ./dist/.python_local/Lib/site-packages/PySide6/qml
+        rm -rv ./dist/.python_local/Lib/site-packages/PySide6/include
 
     - name: Smoke test
       run: ./dist/OATFWGUI_Windows.bat --no-gui
