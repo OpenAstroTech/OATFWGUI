@@ -8,7 +8,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Tuple, List, Optional
 
-from PySide6.QtCore import Slot, Signal, QObject, QFileSystemWatcher, QFile, QMetaMethod
+from PySide6.QtCore import Slot, Signal, QObject, QFileSystemWatcher, QFile, QMetaMethod, QtMsgType, QMessageLogContext, \
+    qInstallMessageHandler
 
 from external_processes import get_install_dir
 from platform_check import get_platform, PlatformEnum
@@ -133,6 +134,26 @@ class LoggedExternalFile:
             self.log.warning(f'Could not remove temp file {self.tempfile.name}')
 
 
+def qt_message_handler(msg_type: QtMsgType, msg_ctx: QMessageLogContext, msg: str):
+    qt_log_level_map = {
+        QtMsgType.QtDebugMsg: logging.DEBUG,
+        QtMsgType.QtInfoMsg: logging.INFO,
+        QtMsgType.QtWarningMsg: logging.WARNING,
+        QtMsgType.QtCriticalMsg: logging.CRITICAL,
+        QtMsgType.QtFatalMsg: logging.FATAL,
+    }
+    py_log_level = qt_log_level_map.get(msg_type, logging.INFO)
+
+    if any([msg_ctx.file, msg_ctx.function, msg_ctx.line]):
+        # I don't think the context is usually filled but here if needed
+        context_str = f' {msg_ctx.file}:{msg_ctx.function}:{msg_ctx.line}'
+    else:
+        context_str = ''
+    # Don't want to global the `log` variable here (idk if things will break)
+    log = logging.getLogger('')
+    log.log(py_log_level, f'Qt:{msg}{context_str}')
+
+
 def setup_logging(logger, qt_log_obj: LogObject):
     logger.setLevel(logging.DEBUG)
     # file handler
@@ -154,5 +175,8 @@ def setup_logging(logger, qt_log_obj: LogObject):
     gh.setLevel(logging.INFO)
     gh.setFormatter(CustomFormatter(colour_type=LogColourTypes.html))
     logger.addHandler(gh)
+
+    # Qt logging
+    qInstallMessageHandler(qt_message_handler)
 
     logger.debug(f'Logging initialized (logfile={log_file})')
