@@ -23,10 +23,14 @@ from misc_utils import delete_directory
 log = logging.getLogger('')
 
 
-def get_pio_environments(fw_dir: Path) -> List[PioEnv]:
-    ini_path = Path(fw_dir, 'platformio.ini')
+def read_platformio_ini_file(logic_state: LogicState) -> List[str]:
+    ini_path = Path(logic_state.fw_dir, 'platformio.ini')
     with open(ini_path.resolve(), 'r') as fp:
         ini_lines = fp.readlines()
+    return ini_lines
+
+
+def get_pio_environments(ini_lines: List[str]) -> List[PioEnv]:
     environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
     raw_pio_envs = []
     for environment_line in environment_lines:
@@ -193,7 +197,8 @@ class BusinessLogic:
         zipfile_name = download_fw(zip_url)
 
         self.logic_state.fw_dir = extract_fw(zipfile_name)
-        self.logic_state.pio_envs = get_pio_environments(self.logic_state.fw_dir)
+        ini_lines = read_platformio_ini_file(self.logic_state)
+        self.logic_state.pio_envs = get_pio_environments(ini_lines)
         return self.download_and_extract_fw.__name__
 
     @staticmethod
@@ -226,6 +231,24 @@ class BusinessLogic:
 
     def build_fw(self):
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
+
+        if self.logic_state.env_is_avr_based():
+            # Before logging anything, check that we need to do something
+            ini_lines = read_platformio_ini_file(self.logic_state)
+            # hard match the entire line
+            # readline[s]() will always terminate a line with \n (and not \r\n on windows! :D)
+            # https://docs.python.org/3.11/tutorial/inputoutput.html#methods-of-file-objects
+            bad_platform_line = 'platform = atmelavr\n'
+            good_platform_line = 'platform = atmelavr@4.2.0\n'
+            if bad_platform_line in ini_lines:
+                log.warning('Hot patching platformio AVR platform!!!')
+                log.warning(f'Replacing {repr(bad_platform_line)} with {repr(good_platform_line)}')
+                ini_lines = [
+                    good_platform_line if line == bad_platform_line else line
+                    for line in ini_lines
+                ]
+                with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
+                    fp.writelines(ini_lines)
 
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
         if Path(config_dest_path) != Path(self.logic_state.config_file_path):
@@ -323,9 +346,7 @@ class BusinessLogic:
             return
 
         # Stupid fix for avrdude outputting to stderr by default
-        if self.logic_state.pio_env is not None and any(
-                avr_env_substr in self.logic_state.pio_env.lower()
-                for avr_env_substr in ['mksgenl', 'ramps']):
+        if self.logic_state.env_is_avr_based():
             avrdude_logfile_name = self.avr_dude_logwatch.create_file(file_suffix='_avrdude_log')
             # Note: avrdude doesn't strip the filename! So no spaces at the beginning
             env_vars = {'PLATFORMIO_UPLOAD_FLAGS': f'-l{avrdude_logfile_name}'}
