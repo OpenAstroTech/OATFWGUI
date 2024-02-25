@@ -24,6 +24,7 @@ from log_utils import LogObject, setup_logging
 from gui_logic import BusinessLogic
 from platform_check import get_platform, PlatformEnum
 from external_processes import external_processes, add_external_process, get_install_dir
+from qwarningbannerholder import global_warning_banners
 from anon_usage_data import create_anon_stats
 from misc_utils import delete_directory
 
@@ -43,6 +44,7 @@ have too many characters in it ({num_chars_in_dir})! Downloading/building firmwa
 lengths greater than the default Windows path length of 260 characters.
 '''
         log.warning(general_warn_str + warn_str)
+        global_warning_banners.add(f'{dir_to_check} might have too many characters in it ({num_chars_in_dir})!')
 
 
 def setup_environment():
@@ -107,6 +109,7 @@ def raw_version_to_semver() -> Optional[semver.VersionInfo]:
         semver_ver = semver.VersionInfo.parse(__version__)
     except ValueError as e:
         log.warning(f'Could not parse my own version string {__version__} {e}')
+        global_warning_banners.add(f'Could not parse my own version string {__version__}')
         return None
     return semver_ver
 
@@ -130,6 +133,7 @@ def check_new_oatfwgui_release() -> Optional[Tuple[str, str]]:
             release_ver = semver.VersionInfo.parse(release_json['tag_name'])
         except ValueError as e:
             log.warning(f'Could not parse tag name as semver {release_json["tag_name"]} {e}')
+            global_warning_banners.add(f'Could not parse tag name as semver {release_json["tag_name"]}')
             continue
         releases[release_ver] = release_json['html_url']
         if latest_release_ver is None or release_ver > latest_release_ver:

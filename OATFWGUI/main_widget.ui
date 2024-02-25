@@ -24,17 +24,16 @@
      </property>
      <item>
       <layout class="QGridLayout" name="gridLayout">
+       <item row="3" column="4">
+        <widget class="QBusyIndicatorGoodBad" name="wSpn_upload"/>
+       </item>
+       <item row="2" column="4">
+        <widget class="QBusyIndicatorGoodBad" name="wSpn_build"/>
+       </item>
        <item row="1" column="3">
         <widget class="QPushButton" name="wBtn_select_local_config">
          <property name="text">
           <string>Select local config file</string>
-         </property>
-        </widget>
-       </item>
-       <item row="5" column="3">
-        <widget class="QPushButton" name="wBtn_what_stats">
-         <property name="text">
-          <string>What will be uploaded?</string>
          </property>
         </widget>
        </item>
@@ -48,34 +47,17 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="1">
-        <widget class="QComboBox" name="wCombo_serial_port">
-         <property name="placeholderText">
-          <string>No port selected</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QComboBox" name="wCombo_pio_env">
-         <property name="placeholderText">
-          <string>No FW downloaded yet...</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="wMsg_fw_version">
+       <item row="1" column="0">
+        <widget class="QLabel" name="wMsg_pio_env">
          <property name="text">
-          <string>Select firmware version:</string>
+          <string>Select board:</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="3">
-        <widget class="QPushButton" name="wBtn_download_fw">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
+       <item row="5" column="3">
+        <widget class="QPushButton" name="wBtn_what_stats">
          <property name="text">
-          <string>Download</string>
+          <string>What will be uploaded?</string>
          </property>
         </widget>
        </item>
@@ -89,17 +71,37 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="wMsg_pio_env">
+       <item row="0" column="0">
+        <widget class="QLabel" name="wMsg_fw_version">
          <property name="text">
-          <string>Select board:</string>
+          <string>Select firmware version:</string>
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QComboBox" name="wCombo_fw_version">
+       <item row="0" column="4">
+        <widget class="QBusyIndicatorGoodBad" name="wSpn_download"/>
+       </item>
+       <item row="1" column="1">
+        <widget class="QComboBox" name="wCombo_pio_env">
          <property name="placeholderText">
-          <string>Grabbing FW Versions...</string>
+          <string>No FW downloaded yet...</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0" colspan="4">
+        <widget class="QLabel" name="wMsg_config_path">
+         <property name="text">
+          <string>No config file selected</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QPushButton" name="wBtn_download_fw">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Download</string>
          </property>
         </widget>
        </item>
@@ -116,8 +118,12 @@
          </property>
         </spacer>
        </item>
-       <item row="2" column="4">
-        <widget class="QBusyIndicatorGoodBad" name="wSpn_build"/>
+       <item row="3" column="1">
+        <widget class="QComboBox" name="wCombo_serial_port">
+         <property name="placeholderText">
+          <string>No port selected</string>
+         </property>
+        </widget>
        </item>
        <item row="1" column="4">
         <widget class="QPushButton" name="wBtn_build_fw">
@@ -136,18 +142,15 @@
          </property>
         </widget>
        </item>
-       <item row="3" column="4">
-        <widget class="QBusyIndicatorGoodBad" name="wSpn_upload"/>
-       </item>
-       <item row="0" column="4">
-        <widget class="QBusyIndicatorGoodBad" name="wSpn_download"/>
-       </item>
-       <item row="2" column="0" colspan="4">
-        <widget class="QLabel" name="wMsg_config_path">
-         <property name="text">
-          <string>No config file selected</string>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="wCombo_fw_version">
+         <property name="placeholderText">
+          <string>Grabbing FW Versions...</string>
          </property>
         </widget>
+       </item>
+       <item row="7" column="0" colspan="5">
+        <widget class="QWarningBannerHolder" name="wWarnBanner"/>
        </item>
       </layout>
      </item>
@@ -175,7 +178,11 @@
    <class>QBusyIndicatorGoodBad</class>
    <extends>QWidget</extends>
    <header>qbusyindicatorgoodbad</header>
-   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QWarningBannerHolder</class>
+   <extends>QWidget</extends>
+   <header>qwarningbannerholder</header>
   </customwidget>
  </customwidgets>
  <resources/>

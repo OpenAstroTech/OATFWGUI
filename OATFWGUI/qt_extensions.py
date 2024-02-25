@@ -55,7 +55,7 @@ class RegisteredCustomWidget(QWidget):
     def factory(cls: 'RegisteredCustomWidget'):
         if not cls.designer_tooltip:
             cls.designer_tooltip = f'{cls.__name__} tooltip'
-        if cls.designer_dom_xml:
+        if not cls.designer_dom_xml:
             cls.designer_dom_xml = f'''
 <ui language='c++'>
     <widget class='{cls.__name__}' name='{cls.__name__.lower()}'>

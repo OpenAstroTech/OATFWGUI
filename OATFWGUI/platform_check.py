@@ -2,6 +2,8 @@ import enum
 import platform
 import logging
 
+from qwarningbannerholder import global_warning_banners
+
 platform_lookup_cache = None
 log = logging.getLogger('')
 
@@ -33,5 +35,6 @@ def get_platform() -> PlatformEnum:
     log.debug(f'platform_str={platform_str}')
     if platform_lookup == PlatformEnum.UNKNOWN:
         log.warning(f'Unknown platform {platform_str}!')
+        global_warning_banners.add(f'Unknown platform {platform_str}!')
 
     return platform_lookup
