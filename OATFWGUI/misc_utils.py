@@ -16,3 +16,8 @@ def delete_directory(dir_to_delete: Path):
         func(path)
 
     shutil.rmtree(dir_to_delete, onerror=remove_readonly)
+
+
+def decode_bytes(byte_string: bytes) -> str:
+    # Just to consolidate all text decoding and make sure they're all the same
+    return byte_string.decode('utf-8', errors='backslashreplace')

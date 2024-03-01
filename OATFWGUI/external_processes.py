@@ -5,6 +5,8 @@ from pathlib import Path
 
 from PySide6.QtCore import Slot, QProcess, QStandardPaths, QProcessEnvironment
 
+from misc_utils import decode_bytes
+
 log = logging.getLogger('')
 
 
@@ -62,14 +64,14 @@ class ExternalProcess:
     @Slot()
     def handle_stderr(self):
         data = self.qproc.readAllStandardError()
-        stderr = bytes(data).decode("utf8")
+        stderr = decode_bytes(bytes(data))
         self.stderr_text += stderr
         log.error(stderr)
 
     @Slot()
     def handle_stdout(self):
         data = self.qproc.readAllStandardOutput()
-        stdout = bytes(data).decode("utf8")
+        stdout = decode_bytes(bytes(data))
         self.stdout_text += stdout
         log.info(stdout)
 
