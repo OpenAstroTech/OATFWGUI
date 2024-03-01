@@ -15,6 +15,7 @@ from pygments.formatters import HtmlFormatter
 
 from platform_check import get_platform, PlatformEnum
 from gui_state import LogicState
+from misc_utils import decode_bytes
 
 log = logging.getLogger('')
 
@@ -163,7 +164,7 @@ def get_uuid_windows() -> str:
         capture_output=True)
     if sub_proc.returncode != 0:
         return 'unknown-windows'
-    windows_uuid = sub_proc.stdout.decode('UTF-8')
+    windows_uuid = decode_bytes(sub_proc.stdout)
     return windows_uuid
 
 
@@ -185,7 +186,7 @@ def to_nearest_half(num: float) -> float:
 def get_approx_location() -> Tuple[float, float]:
     geo_ip_url = 'https://ipinfo.io/loc'
     response = requests.get(geo_ip_url, timeout=2.0)
-    resp_str = response.content.decode().strip()
+    resp_str = decode_bytes(response.content).strip()
     lat_str, lon_str = resp_str.split(',')
     lat_approx = to_nearest_half(float(lat_str))
     lon_approx = to_nearest_half(float(lon_str))
