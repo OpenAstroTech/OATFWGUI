@@ -123,6 +123,9 @@ class LoggedExternalFile:
                 self.log.info(line)
 
     def stop(self):
+        if self.tempfile is None:
+            self.log.warning('Can\'t stop watching None file?')
+            return
         self.log.debug(f'Cleaning up logged external file {self.tempfile.name}')
         self.tempfile.close()
         self.file_watcher.removePath(self.tempfile.name)
