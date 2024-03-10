@@ -81,6 +81,9 @@ function set_supported_python_path {
       # python not available either
       echo "Could not find a python install. (tried python3, python)."
       echo "Please install python3"
+        echo "
+If you know you have python installed, try overriding the PYTHON environment variable when starting this script
+i.e. PYTHON=/usr/bin/python3.9 ./OATFWGUI_Linux.sh"
       exit 1
     else
       # python is a command
@@ -88,6 +91,9 @@ function set_supported_python_path {
       if ! check_py_version; then
         # check_py_version already gives an error message
         echo "python version is not valid (tried python3, but it's not installed)"
+        echo "
+If you have another version of python installed, try overriding the PYTHON environment variable when starting this script
+i.e. PYTHON=/usr/bin/python3.9 ./OATFWGUI_Linux.sh"
         exit 1
       fi
       # Ok! python is a valid command, and is a supported version
@@ -98,6 +104,9 @@ function set_supported_python_path {
     if ! check_py_version; then
       # check_py_version already gives an error message
       echo "python3 version is not valid"
+        echo "
+If you have another version of python installed, try overriding the PYTHON environment variable when starting this script
+i.e. PYTHON=/usr/bin/python3.9 ./OATFWGUI_Linux.sh"
       exit 1
     fi
   fi
