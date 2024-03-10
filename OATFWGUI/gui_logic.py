@@ -368,7 +368,8 @@ class BusinessLogic:
     @Slot()
     def pio_upload_finished(self):
         log.info(f'platformio upload finished')
-        self.avr_dude_logwatch.stop()
+        if self.logic_state.env_is_avr_based():
+            self.avr_dude_logwatch.stop()
         exit_code = external_processes['platformio'].qproc.exitCode()
         if exit_code == 0:
             log.info('Normal exit')
