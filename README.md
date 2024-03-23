@@ -1,4 +1,6 @@
 # OAT FirmWare GUI
+![](https://img.shields.io/github/downloads/OpenAstroTech/OATFWGUI/total)
+
 OpenAstroTech FirmWare Graphical User Interface -- A graphical way to build and load firmware onto an OpenAstroTracker/OpenAstroMount.
 
 ## Supported platforms
