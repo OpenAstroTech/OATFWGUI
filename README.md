@@ -7,14 +7,14 @@ OpenAstroTech FirmWare Graphical User Interface -- A graphical way to build and 
 - Windows 64 bit
 - Linux 64 bit
   - Requires Python 3.7..3.11, git, libc >= 2.28 (check with `ldd --version`)
-
-MacOS support [is in progress](https://github.com/OpenAstroTech/OATFWGUI/commits/feature/js/official-mac-support/), but isn't reliable yet.
+- MacOS 11+ (probably, not very well tested)
+  - Requires Python 3.7..3.11, git
 
 ## Installing
 Simply download the [latest release](https://github.com/OpenAstroTech/OATFWGUI/releases), unzip and run:
 - Windows: `OATFWGUI_Windows.bat`
-- Linux: `OATFWGUI_Linux.sh`
-  - Override the python interpreter by setting `PYTHON` (i.e. `PYTHON=/usr/bin/python3.10 ./OATFWGUI_Linux.sh`)
+- Linux: `OATFWGUI_Linux.sh` and MacOS: `OATFWGUI_Mac.command`
+  - You can override the python version by setting `PYTHON` (i.e. `PYTHON=/usr/bin/python3.10 ./OATFWGUI_Linux.sh`)
   - This creates a local python virtual environment in `.venv_OATFWGUI`. If there's an error during the first run, delete that folder to have the script try again.
 
 > :warning: **OATFWGUI requires an active internet connection!**

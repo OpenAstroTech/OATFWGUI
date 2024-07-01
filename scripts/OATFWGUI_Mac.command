@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
-# This is the entry point for the "compiled" Linux app
+# This is the entry point for the "compiled" MacOS app
+# Note that this based off of the Linux script, except for:
+# - removal of the libc version check
+# - conversion from GNU to BSD-isms
+# - special checking for python3 installation
 
 # list_include_item "10 11 12" "2"
 function list_include_item {
@@ -12,31 +16,6 @@ function list_include_item {
   else
     return 1
   fi
-}
-
-function check_ldd_version {
-  local LIBC_VER_RAW
-  LIBC_VER_RAW=$(ldd --version | head -1)
-  echo "LIBC version: $LIBC_VER_RAW"
-  if ! [[ $LIBC_VER_RAW =~ ([[:digit:]]+)\.([[:digit:]]+) ]]; then
-    echo "Could not match LIBC version! Not sure what's going on."
-    return 1
-  fi
-  local LIBC_VER_ALL=${BASH_REMATCH[0]}
-  local LIBC_VER_MAJ=${BASH_REMATCH[1]}
-  local LIBC_VER_MIN=${BASH_REMATCH[2]}
-
-  # Only support libc 2
-  if ! list_include_item '2' "$LIBC_VER_MAJ"; then
-    echo "LIBC major version $LIBC_VER_MAJ ($LIBC_VER_ALL) is not supported"
-    return 1
-  fi
-  # Only support >= 28
-  if [ "$LIBC_VER_MIN" -lt 28 ]; then
-    echo "LIBC minor version $LIBC_VER_MIN ($LIBC_VER_ALL) is not supported"
-    return 1
-  fi
-  return 0
 }
 
 function check_py_version {
@@ -65,6 +44,20 @@ function check_py_version {
   return 0
 }
 
+function will_get_stub_popup {
+  # https://stackoverflow.com/a/71150139/1313872 but modified  for all stubs
+  echo "Checking if $1 is a stub"
+  if [[ $(which "$1") == "/usr/bin/$1"* ]]; then
+    if [ -d "/Applications/Xcode.app/Contents/Developer/usr/bin/$1" ]; then
+      return 1  # won't get a popup if we try to launch
+    else
+      return 0  # not installed, we'll get a popup
+    fi
+  else
+    return 1  # won't get a popup if we try to launch
+  fi
+}
+
 function set_supported_python_path {
   if [ -n "${PYTHON+x}" ]; then
     # PYTHON is being set from the CLI
@@ -74,51 +67,37 @@ function set_supported_python_path {
     fi
     echo "Overridden PYTHON not supported. Checking system python versions."
   fi
-  # Check the that one of (python, python3) is supported
-  if ! command -v python3 > /dev/null; then
-    # ok, python3 not available. Try python
-    if ! command -v python > /dev/null; then
-      # python not available either
-      echo "Could not find a python install. (tried python3, python)."
-      echo "Please install python3"
-        echo "
-If you know you have python installed, try overriding the PYTHON environment variable when starting this script
-i.e. PYTHON=/usr/bin/python3.9 ./OATFWGUI_Linux.sh"
-      exit 1
-    else
-      # python is a command
-      PYTHON=$(command -v python)
-      if ! check_py_version; then
-        # check_py_version already gives an error message
-        echo "python version is not valid (tried python3, but it's not installed)"
-        echo "
-If you have another version of python installed, try overriding the PYTHON environment variable when starting this script
-i.e. PYTHON=/usr/bin/python3.9 ./OATFWGUI_Linux.sh"
-        exit 1
-      fi
-      # Ok! python is a valid command, and is a supported version
-    fi
-  else
-    # python3 is a command
+  # We already checked that python3 isn't a stub
+  if command -v python3 > /dev/null; then
     PYTHON=$(command -v python3)
     if ! check_py_version; then
       # check_py_version already gives an error message
       echo "python3 version is not valid"
-        echo "
-If you have another version of python installed, try overriding the PYTHON environment variable when starting this script
-i.e. PYTHON=/usr/bin/python3.9 ./OATFWGUI_Linux.sh"
       exit 1
     fi
   fi
 }
 
 # Main script logic
-SCRIPT_DIR="$( dirname -- "$( readlink -f -- "$0"; )"; )"
+# "readlink -f" not available: https://unix.stackexchange.com/a/690000
+SCRIPT_DIR=$( cd "$(dirname "$0")" ; pwd -P )
 echo "Script dir: $SCRIPT_DIR"
-pushd "$SCRIPT_DIR"  # relative paths can now be used
-exit 0
-if ! check_ldd_version; then
-  echo "Unsupported LIBC version, sorry :/"
+pushd "$SCRIPT_DIR" > /dev/null # relative paths can now be used
+
+if will_get_stub_popup python3; then
+  echo ''
+  echo 'python3 is not installed. The quickest and least intrusive way to install is https://www.python.org/downloads/release/python-3114/'
+  echo '(download links are at the bottom)'
+  echo "Note that you do not need to install \"Python Documentation\" or \"GUI Applications\""
+  echo "(click \"Customize\" during the \"Installation Type\" step)"
+  echo ''
+  exit 1
+fi
+
+if will_get_stub_popup git; then
+  echo ''
+  echo 'git is not installed. The quickest and least intrusive way to install is https://sourceforge.net/projects/git-osx-installer/files/'
+  echo ''
   exit 1
 fi
 
