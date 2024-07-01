@@ -9,6 +9,7 @@ log = logging.getLogger('')
 class PlatformEnum(enum.Enum):
     LINUX = enum.auto()
     WINDOWS = enum.auto()
+    MACOS = enum.auto()
     UNKNOWN = enum.auto()
 
 
@@ -25,6 +26,8 @@ def get_platform() -> PlatformEnum:
         platform_lookup = PlatformEnum.WINDOWS
     elif 'linux' in platform_str:
         platform_lookup = PlatformEnum.LINUX
+    elif 'darwin' in platform_str:
+        platform_lookup = PlatformEnum.MACOS
     else:
         platform_lookup = PlatformEnum.UNKNOWN
     platform_lookup_cache = platform_lookup  # Cache return
