@@ -13,31 +13,6 @@ log = logging.getLogger('')
 
 
 class BusyIndicatorState(enum.Enum):
-    # designer_dom_xml = '''
-    # <ui language='c++'>
-    #     <widget class='QBusyIndicatorGoodBad' name='qBusyIndicatorGoodBad'>
-    #         <property name='fixed_size'>
-    #             <size>
-    #                 <width>10</width>
-    #                 <height>10</height>
-    #             </size>
-    #         </property>
-    #     </widget>
-    # </ui>
-    # '''
-    #
-    # def get_fixed_size(self) -> QSize:
-    #     return self._fixed_size
-    #
-    # def set_fixed_size(self, fixed_size: QSize):
-    #     self._fixed_size = fixed_size
-    #     self.setFixedSize(fixed_size)
-    #
-    # fixed_size = Property(QSize, get_fixed_size, set_fixed_size)
-    #
-    # ...
-    #
-    # self._fixed_size = QSize(200, 200)
     NONE = enum.auto()
     BUSY = enum.auto()
     GOOD = enum.auto()
