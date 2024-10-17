@@ -95,6 +95,7 @@ class BusinessLogic:
         self.logic_state = LogicState()
 
         self.main_app = main_app
+        main_app.wCombo_fw_version.currentIndexChanged.connect(self.fw_version_combo_box_changed)
         main_app.wBtn_download_fw.setEnabled(True)
         main_app.wBtn_download_fw.clicked.connect(self.spawn_worker_thread(self.download_and_extract_fw))
         main_app.wBtn_select_local_config.clicked.connect(self.open_local_config_file)
@@ -211,6 +212,20 @@ class BusinessLogic:
         main_app.wCombo_pio_env.setPlaceholderText('Select Board')
 
     @Slot()
+    def fw_version_combo_box_changed(self, idx: int):
+        if idx == self.logic_state.release_idx:
+            return  # Nothing changed, nothing to do
+        # Clear most state, if FW version is changed we want the user to go through the steps again
+        # (technically not necessary but can trip some users up)
+        log.debug('FW version changed, clearing some state')
+        self.logic_state.pio_envs.clear()
+        self.logic_state.pio_env = None
+        self.main_app.wSpn_download.setState(BusyIndicatorState.NONE)
+        self.main_app.wCombo_pio_env.clear()
+        self.main_app.wSpn_build.setState(BusyIndicatorState.NONE)
+        self.worker_finished()
+
+    @Slot()
     def pio_env_combo_box_changed(self, idx: int):
         if self.logic_state.pio_envs and idx != -1:
             self.logic_state.pio_env = self.logic_state.pio_envs[idx].raw_name
@@ -229,12 +244,27 @@ class BusinessLogic:
         # manually update GUI
         self.worker_finished()
 
-    def build_fw(self):
-        self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
+    def do_hot_patches(self):
+        # Before logging anything, check that we need to do something
+        ini_lines = read_platformio_ini_file(self.logic_state)
+        bad_git_tag_re = re.compile(r'(github\.com.+)@')
+        if any(bad_git_tag_re.search(ini_line) for ini_line in ini_lines):
+            log.warning('Hot patching git tag specifiers!!!')
+            def patch_line(in_str: str) -> str:
+                if bad_git_tag_re.search(in_str):
+                    out_str = bad_git_tag_re.sub(r'\1#', in_str)
+                    log.warning(f'Replacing {in_str} with {out_str}')
+                    return out_str
+                else:
+                    return in_str
+            ini_lines = [
+                patch_line(line)
+                for line in ini_lines
+            ]
+            with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
+                fp.writelines(ini_lines)
 
         if self.logic_state.env_is_avr_based():
-            # Before logging anything, check that we need to do something
-            ini_lines = read_platformio_ini_file(self.logic_state)
             # hard match the entire line
             # readline[s]() will always terminate a line with \n (and not \r\n on windows! :D)
             # https://docs.python.org/3.11/tutorial/inputoutput.html#methods-of-file-objects
@@ -249,6 +279,12 @@ class BusinessLogic:
                 ]
                 with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
                     fp.writelines(ini_lines)
+
+    def build_fw(self):
+        self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
+
+        # Hot patches, since we can't re-release an old firmware tag
+        self.do_hot_patches()
 
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
         if Path(config_dest_path) != Path(self.logic_state.config_file_path):
