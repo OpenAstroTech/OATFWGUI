@@ -95,6 +95,7 @@ class BusinessLogic:
         self.logic_state = LogicState()
 
         self.main_app = main_app
+        main_app.wCombo_fw_version.currentIndexChanged.connect(self.fw_version_combo_box_changed)
         main_app.wBtn_download_fw.setEnabled(True)
         main_app.wBtn_download_fw.clicked.connect(self.spawn_worker_thread(self.download_and_extract_fw))
         main_app.wBtn_select_local_config.clicked.connect(self.open_local_config_file)
@@ -209,6 +210,20 @@ class BusinessLogic:
         for pio_env_name in pio_environments:
             main_app.wCombo_pio_env.addItem(pio_env_name.nice_name)
         main_app.wCombo_pio_env.setPlaceholderText('Select Board')
+
+    @Slot()
+    def fw_version_combo_box_changed(self, idx: int):
+        if idx == self.logic_state.release_idx:
+            return  # Nothing changed, nothing to do
+        # Clear most state, if FW version is changed we want the user to go through the steps again
+        # (technically not necessary but can trip some users up)
+        log.debug('FW version changed, clearing some state')
+        self.logic_state.pio_envs.clear()
+        self.logic_state.pio_env = None
+        self.main_app.wSpn_download.setState(BusyIndicatorState.NONE)
+        self.main_app.wCombo_pio_env.clear()
+        self.main_app.wSpn_build.setState(BusyIndicatorState.NONE)
+        self.worker_finished()
 
     @Slot()
     def pio_env_combo_box_changed(self, idx: int):
