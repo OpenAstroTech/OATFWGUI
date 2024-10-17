@@ -244,12 +244,27 @@ class BusinessLogic:
         # manually update GUI
         self.worker_finished()
 
-    def build_fw(self):
-        self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
+    def do_hot_patches(self):
+        # Before logging anything, check that we need to do something
+        ini_lines = read_platformio_ini_file(self.logic_state)
+        bad_git_tag_re = re.compile(r'(github\.com.+)@')
+        if any(bad_git_tag_re.search(ini_line) for ini_line in ini_lines):
+            log.warning('Hot patching git tag specifiers!!!')
+            def patch_line(in_str: str) -> str:
+                if bad_git_tag_re.search(in_str):
+                    out_str = bad_git_tag_re.sub(r'\1#', in_str)
+                    log.warning(f'Replacing {in_str} with {out_str}')
+                    return out_str
+                else:
+                    return in_str
+            ini_lines = [
+                patch_line(line)
+                for line in ini_lines
+            ]
+            with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
+                fp.writelines(ini_lines)
 
         if self.logic_state.env_is_avr_based():
-            # Before logging anything, check that we need to do something
-            ini_lines = read_platformio_ini_file(self.logic_state)
             # hard match the entire line
             # readline[s]() will always terminate a line with \n (and not \r\n on windows! :D)
             # https://docs.python.org/3.11/tutorial/inputoutput.html#methods-of-file-objects
@@ -264,6 +279,12 @@ class BusinessLogic:
                 ]
                 with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
                     fp.writelines(ini_lines)
+
+    def build_fw(self):
+        self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
+
+        # Hot patches, since we can't re-release an old firmware tag
+        self.do_hot_patches()
 
         config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
         if Path(config_dest_path) != Path(self.logic_state.config_file_path):
