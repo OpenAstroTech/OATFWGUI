@@ -2,7 +2,6 @@
 set -e
 # This is the entry point for the "compiled" Linux app
 
-# list_include_item "10 11 12" "2"
 function list_include_item {
   local list="$1"
   local item="$2"
@@ -32,6 +31,7 @@ function check_ldd_version {
     return 1
   fi
   # Only support >= 28
+  # 2.28 from: https://doc.qt.io/qt-6/supported-platforms.html#availability-of-packages
   if [ "$LIBC_VER_MIN" -lt 28 ]; then
     echo "LIBC minor version $LIBC_VER_MIN ($LIBC_VER_ALL) is not supported"
     return 1
@@ -58,7 +58,7 @@ function check_py_version {
     return 1
   fi
   # Only support 3.7+
-  if ! list_include_item '7 8 9 10 11' "$PY_VER_MIN"; then
+  if ! list_include_item '9 10 11 12 13' "$PY_VER_MIN"; then
     echo "Python minor version $PY_VER_MIN ($PY_VER_ALL) is not supported"
     return 1
   fi
