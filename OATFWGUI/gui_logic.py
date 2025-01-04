@@ -361,11 +361,6 @@ class BusinessLogic:
         self.main_app.wCombo_serial_port.clear()
         for serial_port in self.logic_state.serial_ports:
             self.main_app.wCombo_serial_port.addItem(serial_port)
-        if len(self.logic_state.serial_ports) > 0:
-            self.main_app.wCombo_serial_port.setCurrentIndex(0)
-        else:
-            self.logic_state.upload_port = None
-            self.main_app.wCombo_serial_port.setCurrentIndex(-1)
 
     @Slot()
     def serial_port_combo_box_changed(self, idx: int):
