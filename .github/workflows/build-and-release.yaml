@@ -118,16 +118,16 @@ jobs:
       env:
         ARTIFACT_ZIP_NAME: ${{ env.ARTIFACT_ZIP_NAME }}
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARTIFACT_ZIP_NAME }}
         path: ${{ env.ARTIFACT_ZIP_NAME }}.zip
 
   build-virtualenv:
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     strategy:
       matrix:
-        py_version: [ "3.7", "3.8", "3.9", "3.10", "3.11" ]
+        py_version: [ "3.9", "3.10", "3.11", "3.12", "3.13" ]
 
     steps:
     - uses: actions/checkout@v3
@@ -171,8 +171,8 @@ jobs:
       env:
         ARTIFACT_ZIP_NAME: ${{ env.ARTIFACT_ZIP_NAME }}
     - name: Upload artifact
-      if: ${{ matrix.py_version }} == "3.10" # Only publish one artifact
-      uses: actions/upload-artifact@v3
+      if: ${{ matrix.py_version == 3.10 }} # Only publish one artifact
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ env.ARTIFACT_ZIP_NAME }}
         path: ${{ env.ARTIFACT_ZIP_NAME }}.zip
@@ -181,14 +181,14 @@ jobs:
     # only publish release on tags
     if: ${{ startsWith(github.ref, 'refs/tags/') == true }}
     needs: [build-windows, build-virtualenv]
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     permissions:
       # See https://github.com/softprops/action-gh-release/issues/236#issuecomment-1150530128
       contents: write
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
       - name: Show artifact contents

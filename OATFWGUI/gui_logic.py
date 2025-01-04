@@ -120,7 +120,8 @@ class BusinessLogic:
     def spawn_worker_thread(self, fn):
         @Slot()
         def worker_thread_slot():
-            all_threads_removed = self.threadpool.waitForDone(msecs=5000)
+            msecs = 5000
+            all_threads_removed = self.threadpool.waitForDone(msecs)
             if not all_threads_removed:
                 log.fatal(f'Waited too long for threads to sys.exit! {self.threadpool.activeThreadCount()}')
                 sys.exit(1)

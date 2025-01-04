@@ -6,7 +6,7 @@ OpenAstroTech FirmWare Graphical User Interface -- A graphical way to build and 
 ## Supported platforms
 - Windows 64 bit
 - Linux 64 bit
-  - Requires Python 3.7..3.11, git, libc >= 2.28 (check with `ldd --version`)
+  - Requires Python 3.9..3.13, git, libc >= 2.28 (check with `ldd --version`)
 
 MacOS support [is in progress](https://github.com/OpenAstroTech/OATFWGUI/commits/feature/js/official-mac-support/), but isn't reliable yet.
 
