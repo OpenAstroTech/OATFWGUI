@@ -50,3 +50,7 @@ To run the widget designer you need python development libraries:
 `source .venv/bin/activate && env PYSIDE_DESIGNER_PLUGINS=$(realpath ./OATFWGUI) pyside6-designer`
 
 Open `main_widget.ui` in the designer
+
+### Releasing a new version
+1. Bump version in `OATFWGUI/_version.py`
+2. Run `scripts/commit_and_tag_new_version.sh`
