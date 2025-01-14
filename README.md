@@ -13,6 +13,7 @@ MacOS support [is in progress](https://github.com/OpenAstroTech/OATFWGUI/commits
 ## Installing
 Simply download the [latest release](https://github.com/OpenAstroTech/OATFWGUI/releases), unzip and run:
 - Windows: `OATFWGUI_Windows.bat`
+  - Visual C++ Redistributable is needed, otherwise an error regarding "vcruntime140.dll is missing pops up.
 - Linux: `OATFWGUI_Linux.sh`
   - Override the python interpreter by setting `PYTHON` (i.e. `PYTHON=/usr/bin/python3.10 ./OATFWGUI_Linux.sh`)
   - This creates a local python virtual environment in `.venv_OATFWGUI`. If there's an error during the first run, delete that folder to have the script try again.
