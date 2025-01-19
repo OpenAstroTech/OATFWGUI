@@ -199,9 +199,13 @@ jobs:
             zip -sf $zip_dist
           done
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
           generate_release_notes: true
+          append_body: true
+          body: |
+            
+            ![](https://img.shields.io/github/downloads/OpenAstroTech/OATFWGUI/${{ github.ref_name }}/total)
           fail_on_unmatched_files: true
           files: artifacts/*/*.zip
