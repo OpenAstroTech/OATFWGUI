@@ -248,7 +248,8 @@ class BusinessLogic:
     def do_hot_patches(self):
         # Before logging anything, check that we need to do something
         ini_lines = read_platformio_ini_file(self.logic_state)
-        bad_git_tag_re = re.compile(r'(github\.com.+)@')
+
+        bad_git_tag_re = re.compile(r'(^[^;\n]+github\.com.+)@')
         if any(bad_git_tag_re.search(ini_line) for ini_line in ini_lines):
             log.warning('Hot patching git tag specifiers!!!')
             def patch_line(in_str: str) -> str:
