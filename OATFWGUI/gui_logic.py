@@ -263,8 +263,6 @@ class BusinessLogic:
                 patch_line(line)
                 for line in ini_lines
             ]
-            with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
-                fp.writelines(ini_lines)
 
         if self.logic_state.env_is_avr_based():
             # hard match the entire line
@@ -279,8 +277,6 @@ class BusinessLogic:
                     good_platform_line if line == bad_platform_line else line
                     for line in ini_lines
                 ]
-                with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
-                    fp.writelines(ini_lines)
 
         bad_ssd_1306_revision_re = re.compile(r'(ClutchplateDude/esp8266-oled-ssd1306\s*#\s*4\.6\.0)')
         if any(bad_ssd_1306_revision_re.search(ini_line) for ini_line in ini_lines):
@@ -296,8 +292,14 @@ class BusinessLogic:
                 patch_line(line)
                 for line in ini_lines
             ]
+
+        # Just re-read the ini file to see if we changed anything
+        if ini_lines != read_platformio_ini_file(self.logic_state):
+            log.debug('Writing out patched ini file')
             with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
                 fp.writelines(ini_lines)
+        else:
+            log.debug('No patches applied')
 
     def build_fw(self):
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
