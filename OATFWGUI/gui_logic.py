@@ -248,7 +248,8 @@ class BusinessLogic:
     def do_hot_patches(self):
         # Before logging anything, check that we need to do something
         ini_lines = read_platformio_ini_file(self.logic_state)
-        bad_git_tag_re = re.compile(r'(github\.com.+)@')
+
+        bad_git_tag_re = re.compile(r'(^[^;\n]+github\.com.+)@')
         if any(bad_git_tag_re.search(ini_line) for ini_line in ini_lines):
             log.warning('Hot patching git tag specifiers!!!')
             def patch_line(in_str: str) -> str:
@@ -262,8 +263,6 @@ class BusinessLogic:
                 patch_line(line)
                 for line in ini_lines
             ]
-            with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
-                fp.writelines(ini_lines)
 
         if self.logic_state.env_is_avr_based():
             # hard match the entire line
@@ -278,8 +277,29 @@ class BusinessLogic:
                     good_platform_line if line == bad_platform_line else line
                     for line in ini_lines
                 ]
-                with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
-                    fp.writelines(ini_lines)
+
+        bad_ssd_1306_revision_re = re.compile(r'(ClutchplateDude/esp8266-oled-ssd1306\s*#\s*4\.6\.0)')
+        if any(bad_ssd_1306_revision_re.search(ini_line) for ini_line in ini_lines):
+            log.warning('Hot patching oled-ssd1306 revision!!!')
+            def patch_line(in_str: str) -> str:
+                if bad_ssd_1306_revision_re.search(in_str):
+                    out_str = bad_ssd_1306_revision_re.sub(r'ClutchplateDude/esp8266-oled-ssd1306#4f596c75', in_str)
+                    log.warning(f'Replacing {in_str} with {out_str}')
+                    return out_str
+                else:
+                    return in_str
+            ini_lines = [
+                patch_line(line)
+                for line in ini_lines
+            ]
+
+        # Just re-read the ini file to see if we changed anything
+        if ini_lines != read_platformio_ini_file(self.logic_state):
+            log.debug('Writing out patched ini file')
+            with open(Path(self.logic_state.fw_dir, 'platformio.ini').resolve(), 'w') as fp:
+                fp.writelines(ini_lines)
+        else:
+            log.debug('No patches applied')
 
     def build_fw(self):
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
