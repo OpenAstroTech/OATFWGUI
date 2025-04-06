@@ -283,7 +283,7 @@ class BusinessLogic:
             log.warning('Hot patching oled-ssd1306 revision!!!')
             def patch_line(in_str: str) -> str:
                 if bad_ssd_1306_revision_re.search(in_str):
-                    out_str = bad_ssd_1306_revision_re.sub(r'ClutchplateDude/esp8266-oled-ssd1306#4f596c75', in_str)
+                    out_str = bad_ssd_1306_revision_re.sub(r'ClutchplateDude/esp8266-oled-ssd1306#4.6.2', in_str)
                     log.warning(f'Replacing {in_str} with {out_str}')
                     return out_str
                 else:
