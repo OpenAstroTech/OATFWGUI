@@ -1,3 +1,4 @@
+import os
 import re
 import logging
 import sys
@@ -18,13 +19,13 @@ from qbusyindicatorgoodbad import BusyIndicatorState
 from external_processes import external_processes, get_install_dir
 from gui_state import LogicState, PioEnv, FWVersion
 from anon_usage_data import AnonStatsDialog, create_anon_stats, upload_anon_stats
-from misc_utils import delete_directory
+from misc_utils import delete_directory, get_env_var
 
 log = logging.getLogger('')
 
 
 def read_platformio_ini_file(logic_state: LogicState) -> List[str]:
-    ini_path = Path(logic_state.fw_dir, 'platformio.ini')
+    ini_path = Path(os.path.expandvars(logic_state.fw_dir), 'platformio.ini')
     with open(ini_path.resolve(), 'r') as fp:
         ini_lines = fp.readlines()
     return ini_lines
@@ -69,8 +70,10 @@ def download_fw(zip_url: str) -> Path:
 
 def extract_fw(zipfile_name: Path) -> Path:
     # For Windows path length reasons, keep the firmware folder name short
-    fw_dir = Path(get_install_dir(), 'OATFW')
-    if fw_dir.exists():
+    fw_dir_env = Path(get_env_var('INSTALL_DIR'), 'OATFW')
+    fw_dir = os.path.expandvars(fw_dir_env)
+    
+    if Path(fw_dir).exists():
         log.info(f'Removing previously downloaded FW from {fw_dir}')
         delete_directory(fw_dir)
 
@@ -87,7 +90,7 @@ def extract_fw(zipfile_name: Path) -> Path:
     log.info(f'Rename {extracted_dir} to {fw_dir}')
     shutil.move(extracted_dir, fw_dir)
     log.info(f'Extracted FW to {fw_dir}')
-    return fw_dir
+    return fw_dir_env
 
 
 class BusinessLogic:
@@ -169,6 +172,8 @@ class BusinessLogic:
         releases_list = [
             FWVersion('develop',
                       'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/develop.zip'),
+            FWVersion('oae-fw',
+                      'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/oae-fw.zip'),
         ]
         if r.status_code != requests.codes.ok:
             log.error(f'Failed to grab latest FW versions: {r.status_code} {r.reason} {r.text}')
@@ -307,7 +312,7 @@ class BusinessLogic:
         # Hot patches, since we can't re-release an old firmware tag
         self.do_hot_patches()
 
-        config_dest_path = str(Path(self.logic_state.fw_dir, 'Configuration_local.hpp').resolve())
+        config_dest_path = str(Path(os.path.expandvars(self.logic_state.fw_dir), 'Configuration_local.hpp').resolve())
         if Path(config_dest_path) != Path(self.logic_state.config_file_path):
             if QFile.exists(config_dest_path):
                 log.warning(f'Deleting existing configuration file {config_dest_path}')

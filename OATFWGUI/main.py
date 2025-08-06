@@ -48,6 +48,7 @@ lengths greater than the default Windows path length of 260 characters.
 def setup_environment():
     install_dir = get_install_dir()
     log.debug(f'Install dir is {install_dir}')
+    os.environ['INSTALL_DIR'] = str(install_dir)
     if get_platform() == PlatformEnum.WINDOWS:
         # With 54fa285a dependencies the maximum path length is 180.
         # 260-152=108, but derate to 100 (for possible future increases)
