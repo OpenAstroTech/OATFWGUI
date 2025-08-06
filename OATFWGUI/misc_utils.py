@@ -29,4 +29,4 @@ def get_env_var(env_var) -> str:
         return f'%{env_var}%'
     else:
         # Use $MY_PATH syntax
-        cmd = f'${env_var}' 
+        return f'${env_var}' 
