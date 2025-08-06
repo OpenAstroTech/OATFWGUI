@@ -29,4 +29,4 @@ def get_env_var(env_var) -> str:
         return f'%{env_var}%'
     else:
         # Use $MY_PATH syntax
-        return f'${env_var}' 
+        return os.path.expandvars(f'${env_var}')
