@@ -49,6 +49,7 @@ def get_pio_environments(ini_lines: List[str]) -> List[PioEnv]:
         'mksgenlv21': 'MKS Gen L v2.1',
         'mksgenlv2': 'MKS Gen L v2',
         'mksgenlv1': 'MKS Gen L v1',
+        'oaeboardv1': 'OAE Board v1',
     }
     pio_environments = []
     for raw_env in raw_pio_envs:
