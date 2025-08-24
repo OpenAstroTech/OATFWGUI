@@ -1,3 +1,4 @@
+import configparser
 import re
 import logging
 import sys
@@ -31,12 +32,9 @@ def read_platformio_ini_file(logic_state: LogicState) -> List[str]:
 
 
 def get_pio_environments(ini_lines: List[str]) -> List[PioEnv]:
-    environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
-    raw_pio_envs = []
-    for environment_line in environment_lines:
-        match = re.search(r'\[env:(.+)\]', environment_line)
-        if match:
-            raw_pio_envs.append(match.group(1))
+    platformio_ini = configparser.ConfigParser()
+    platformio_ini.read_string(''.join(ini_lines))
+    raw_pio_envs = [s.split(':', maxsplit=1)[1] for s in platformio_ini.sections() if s.startswith('env:')]
     log.info(f'Found pio environments: {raw_pio_envs}')
 
     # we don't want to build native
