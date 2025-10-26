@@ -1,3 +1,4 @@
+import configparser
 import re
 import logging
 import sys
@@ -31,12 +32,9 @@ def read_platformio_ini_file(logic_state: LogicState) -> List[str]:
 
 
 def get_pio_environments(ini_lines: List[str]) -> List[PioEnv]:
-    environment_lines = [ini_line for ini_line in ini_lines if ini_line.startswith('[env:')]
-    raw_pio_envs = []
-    for environment_line in environment_lines:
-        match = re.search(r'\[env:(.+)\]', environment_line)
-        if match:
-            raw_pio_envs.append(match.group(1))
+    platformio_ini = configparser.ConfigParser()
+    platformio_ini.read_string(''.join(ini_lines))
+    raw_pio_envs = [s.split(':', maxsplit=1)[1] for s in platformio_ini.sections() if s.startswith('env:')]
     log.info(f'Found pio environments: {raw_pio_envs}')
 
     # we don't want to build native
@@ -328,6 +326,21 @@ class BusinessLogic:
             self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
             return
 
+        # TODO: should probably refactor the hot patch logic to use ConfigParser...
+        platformio_ini = configparser.ConfigParser()
+        platformio_ini.read(Path(self.logic_state.fw_dir, 'platformio.ini'))
+        ini_extra_scripts = platformio_ini['env']['extra_scripts']
+        log.info(f'Extra scripts={ini_extra_scripts}')
+        if not 'iprefix' in ini_extra_scripts and not self.logic_state.env_is_avr_based():
+            # Make sure base firmware doesn't already have the iprefix script
+            # AND
+            # Shouldn't be harmful, but it's a bit weird so we only do this on
+            # esp32 boards. Assume that anything not AVR based is esp32 :S
+            pre_script_path = Path(get_install_dir(), 'OATFWGUI', 'pre_script_esp32_iprefix.py')
+            env_vars = {'PLATFORMIO_EXTRA_SCRIPTS': f'pre:{pre_script_path.absolute()}'}
+        else:
+            env_vars = {}
+
         external_processes['platformio'].start(
             ['run',
              '--environment', self.logic_state.pio_env,
@@ -335,6 +348,7 @@ class BusinessLogic:
              '--verbose'
              ],
             self.pio_build_finished,
+            env_vars=env_vars,
         )
 
     @Slot()
