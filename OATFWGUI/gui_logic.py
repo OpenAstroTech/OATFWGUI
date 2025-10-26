@@ -46,6 +46,7 @@ def get_pio_environments(ini_lines: List[str]) -> List[PioEnv]:
         'mksgenlv21': 'MKS Gen L v2.1',
         'mksgenlv2': 'MKS Gen L v2',
         'mksgenlv1': 'MKS Gen L v1',
+        'oaeboardv1': 'OAE Board v1',
     }
     pio_environments = []
     for raw_env in raw_pio_envs:
@@ -167,6 +168,8 @@ class BusinessLogic:
         releases_list = [
             FWVersion('develop',
                       'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/develop.zip'),
+            FWVersion('oae-fw',
+                      'https://github.com/OpenAstroTech/OpenAstroTracker-Firmware/archive/refs/heads/oae-fw.zip'),
         ]
         if r.status_code != requests.codes.ok:
             log.error(f'Failed to grab latest FW versions: {r.status_code} {r.reason} {r.text}')
