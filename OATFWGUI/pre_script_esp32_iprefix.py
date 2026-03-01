@@ -4,7 +4,7 @@ Import("env")
 
 
 def cprint(*args, **kwargs):
-    print(f'modify_test.py:', *args, **kwargs)
+    print('pre_script_esp32_iprefix.py:', *args, **kwargs)
 
 
 def remove_prefix(text: str, prefix: str) -> str:

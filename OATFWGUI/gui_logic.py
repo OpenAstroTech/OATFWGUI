@@ -302,6 +302,22 @@ class BusinessLogic:
         else:
             log.debug('No patches applied')
 
+    def maybe_add_iprefix_pre_script(self, env_vars: dict):
+        # TODO: should probably refactor the hot patch logic to use ConfigParser...
+        platformio_ini = configparser.ConfigParser()
+        platformio_ini.read(Path(self.logic_state.fw_dir, 'platformio.ini'))
+        ini_extra_scripts = platformio_ini.get('env', 'extra_scripts', fallback='')
+        log.info(f'Extra scripts={ini_extra_scripts}')
+        if 'iprefix' in ini_extra_scripts or self.logic_state.env_is_avr_based():
+            return
+
+        # Make sure base firmware doesn't already have the iprefix script
+        # AND
+        # Shouldn't be harmful, but it's a bit weird so we only do this on
+        # esp32 boards. Assume that anything not AVR based is esp32 :S
+        pre_script_path = Path(get_install_dir(), 'OATFWGUI', 'pre_script_esp32_iprefix.py')
+        env_vars.update({'PLATFORMIO_EXTRA_SCRIPTS': f'pre:{pre_script_path.absolute()}'})
+
     def build_fw(self):
         self.main_app.wSpn_build.setState(BusyIndicatorState.BUSY)
 
@@ -329,20 +345,8 @@ class BusinessLogic:
             self.main_app.wSpn_build.setState(BusyIndicatorState.BAD)
             return
 
-        # TODO: should probably refactor the hot patch logic to use ConfigParser...
-        platformio_ini = configparser.ConfigParser()
-        platformio_ini.read(Path(self.logic_state.fw_dir, 'platformio.ini'))
-        ini_extra_scripts = platformio_ini['env']['extra_scripts']
-        log.info(f'Extra scripts={ini_extra_scripts}')
-        if not 'iprefix' in ini_extra_scripts and not self.logic_state.env_is_avr_based():
-            # Make sure base firmware doesn't already have the iprefix script
-            # AND
-            # Shouldn't be harmful, but it's a bit weird so we only do this on
-            # esp32 boards. Assume that anything not AVR based is esp32 :S
-            pre_script_path = Path(get_install_dir(), 'OATFWGUI', 'pre_script_esp32_iprefix.py')
-            env_vars = {'PLATFORMIO_EXTRA_SCRIPTS': f'pre:{pre_script_path.absolute()}'}
-        else:
-            env_vars = {}
+        env_vars = {}
+        self.maybe_add_iprefix_pre_script(env_vars)
 
         external_processes['platformio'].start(
             ['run',
@@ -421,6 +425,8 @@ class BusinessLogic:
             env_vars = {'PLATFORMIO_UPLOAD_FLAGS': f'-l{avrdude_logfile_name}'}
         else:
             env_vars = {}
+
+        self.maybe_add_iprefix_pre_script(env_vars)
 
         external_processes['platformio'].start(
             ['run',
